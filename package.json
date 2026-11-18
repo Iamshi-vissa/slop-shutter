@@ -1,0 +1,22 @@
+{
+  "name": "slop-shutter",
+  "version": "0.1.0",
+  "description": "Flag AI slop and generated-text patterns in prose, web pages and source code.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "slop-shutter": "bin/slop-shutter.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": ["bin", "src", "web", "server.js"],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "start": "node bin/slop-shutter.js serve",
+    "scan": "node bin/slop-shutter.js scan",
+    "test": "node --test test/*.test.js"
+  }
+}

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Slop Shutter</title>
+  <meta name="description" content="Flag AI slop and generated-text patterns in prose, web pages and source code.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='6' fill='%2317140f'/%3E%3Crect x='8' y='9' width='16' height='3' rx='1.5' fill='%23f5f3ee'/%3E%3Crect x='8' y='14.5' width='16' height='3' rx='1.5' fill='%23f5f3ee'/%3E%3Crect x='8' y='20' width='9' height='3' rx='1.5' fill='%23ff5a2a'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Slop Shutter home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="3" y="3" width="26" height="26" rx="6" class="mark-bg"/>
+        <rect x="8" y="9" width="16" height="3" rx="1.5" class="mark-slat"/>
+        <rect x="8" y="14.5" width="16" height="3" rx="1.5" class="mark-slat"/>
+        <rect x="8" y="20" width="9" height="3" rx="1.5" class="mark-signal"/>
+      </svg>
+      <span class="brand-name">Slop Shutter</span>
+    </a>
+    <p class="tagline">Flags generated-text patterns in prose, web pages and code</p>
+    <div class="topbar-actions">
+      <button class="btn ghost" id="open-file" title="Open files (Ctrl+O)">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 13v3h12v-3M10 3v9M6.5 6.5 10 3l3.5 3.5"/></svg>
+        <span>Open files</span>
+      </button>
+      <button class="btn ghost icon-only" id="theme" title="Switch theme" aria-label="Switch theme">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="M10 3.5a6.5 6.5 0 0 0 0 13z" class="fill"/></svg>
+      </button>
+      <input type="file" id="file-input" multiple hidden
+        accept=".txt,.md,.markdown,.mdx,.rst,.html,.htm,.js,.mjs,.jsx,.ts,.tsx,.vue,.svelte,.astro,.css,.scss,.py,.rb,.go,.rs,.java,.php,.sh,.sql,text/*">
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="source" aria-label="Source">
+      <div class="tabs" role="tablist" id="tabs"></div>
+
+      <div class="toolbar">
+        <div class="segmented" role="radiogroup" aria-label="Treat input as" id="kind">
+          <button role="radio" data-kind="auto">Auto</button>
+          <button role="radio" data-kind="prose">Prose</button>
+          <button role="radio" data-kind="html">Web page</button>
+          <button role="radio" data-kind="code">Code</button>
+        </div>
+        <span class="detected" id="detected"></span>
+        <form class="url-form" id="url-form" hidden>
+          <label class="visually-hidden" for="url">Web page address</label>
+          <input id="url" type="url" placeholder="Scan a web page: https://…" autocomplete="off" spellcheck="false">
+          <button class="btn" type="submit">Fetch</button>
+        </form>
+      </div>
+
+      <div class="editor-scroll" id="editor-scroll">
+        <div class="editor">
+          <pre class="layer" id="layer" aria-hidden="true"></pre>
+          <textarea id="input" spellcheck="false" autocapitalize="off" autocomplete="off"
+            aria-label="Text or code to scan" placeholder=""></textarea>
+        </div>
+        <div class="empty" id="empty">
+          <p class="empty-title">Paste text or code, or drop files here.</p>
+          <p class="empty-sub">Prose, Markdown, HTML, CSS, JavaScript, Python and more. Nothing leaves your browser.</p>
+          <div class="samples" id="samples"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="report" aria-label="Report" id="report">
+      <section class="scorecard" id="scorecard">
+        <div class="score-row">
+          <div class="score" id="score" aria-live="polite">
+            <span class="score-num" id="score-num">–</span><span class="score-of">/100</span>
+          </div>
+          <div class="verdict">
+            <p class="verdict-label" id="verdict">Waiting for input</p>
+            <p class="verdict-meta" id="verdict-meta">Scores how much the text looks generated.</p>
+          </div>
+        </div>
+        <div class="meter" aria-hidden="true">
+          <div class="meter-track">
+            <span class="zone zone-human"></span><span class="zone zone-mixed"></span><span class="zone zone-slop"></span>
+          </div>
+          <span class="meter-marker" id="meter-marker"></span>
+          <div class="meter-labels"><span>Human</span><span>Mixed</span><span>Generated</span></div>
+        </div>
+      </section>
+
+      <section class="panel" id="breakdown-panel" hidden>
+        <h2 class="panel-title">Where the score comes from</h2>
+        <ul class="breakdown" id="breakdown"></ul>
+      </section>
+
+      <section class="panel grow" id="signals-panel" hidden>
+        <div class="panel-head">
+          <h2 class="panel-title">Signals <span class="count" id="signal-count"></span></h2>
+          <div class="panel-actions">
+            <button class="btn ghost small" id="copy-md" title="Copy a Markdown report">Copy report</button>
+            <button class="btn ghost small" id="download-json" title="Download the full result as JSON">JSON</button>
+          </div>
+        </div>
+        <div class="chips" id="chips" role="toolbar" aria-label="Filter by category"></div>
+        <ul class="signals" id="signals"></ul>
+      </section>
+
+      <details class="about">
+        <summary>How the score works</summary>
+        <p>Slop Shutter runs about sixty pattern rules (stock phrases, model vocabulary, rhetorical
+          templates, narrating comments, placeholder content, template web styling) and a few
+          whole-document measures such as sentence-length variation. Each hit adds evidence, with
+          diminishing returns for repeats and a correction for length; a logistic model turns the
+          total into a 1–99 score.</p>
+        <p>A score is evidence, not proof. Skilled writers use em dashes, and edited model output can
+          read clean. Use it to find passages worth a second look, not to accuse anyone.</p>
+      </details>
+    </aside>
+  </main>
+
+  <div class="dropzone" id="dropzone" hidden><p>Drop files to scan</p></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
