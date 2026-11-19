@@ -1,0 +1,5 @@
+test/
+Dockerfile
+.dockerignore
+*.md
+!samples/*.md

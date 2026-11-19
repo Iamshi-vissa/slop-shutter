@@ -90,10 +90,22 @@ cd slop-shutter
 npm start
 ```
 
-Then open <http://localhost:4173/>. Paste text, drop files or pick a sample. Flags are
-highlighted in place as you type. Click any signal to see every occurrence, then click an
-occurrence to jump to it. You can also fetch a live web page by URL. Reports export as Markdown
-or JSON. Analysis runs in the browser; the local server is only used to fetch pages.
+Then open <http://localhost:4173/>.
+
+- **Start:** paste, drop files, fetch a web page by address, or pick one of eight samples.
+- **Live highlighting:** flags are highlighted as you type. Analysis runs in a Web Worker so long
+  documents stay smooth, and highlights stay pinned to the text while it works.
+- **Explanations:** every signal opens to show why it counts and each passage it matched. Flags that
+  context set aside are drawn with a dotted outline and listed under *Checked, not counted*.
+- **Navigation:** a minimap beside the scrollbar shows where flags are. Step through them with
+  <kbd>F8</kbd> and <kbd>Shift</kbd>+<kbd>F8</kbd>, or the arrows at the bottom right. Press <kbd>?</kbd>
+  for all shortcuts.
+- **Export:** Markdown report, JSON, or a ready-made `curl` call to the API.
+- **Everywhere:** light and dark themes, a Text/Report switch on phones, keyboard access
+  throughout, and no animation for viewers who ask for reduced motion.
+
+Text is analysed in your browser. It only goes to the server when you fetch a web page by
+address or call the API.
 
 ### Command line
 
@@ -135,6 +147,103 @@ result.signals;   // whole-document signals
 
 The engine has no Node-specific imports, so the same module runs in the browser.
 
+## HTTP API
+
+The server and the serverless deployment expose a JSON API that other apps can call in real time.
+
+`POST /api/analyze`
+
+```bash
+curl -s -X POST http://localhost:4173/api/analyze \
+  -H 'content-type: application/json' \
+  -d '{"text": "It is not just a tool, it is a testament to innovation.", "filename": "post.md"}'
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `text` | string, required | up to 1,000,000 characters; a `text/plain` body also works |
+| `filename` | string | used to detect the kind of file; pass it for code (`app.py`, `page.html`) |
+| `kind` | `prose`, `html` or `code` | overrides detection |
+| `context` | `auto`, `technical` or `general` | overrides the document context |
+| `findings` | boolean, default `true` | `false` returns the score and summary without every flagged passage |
+
+The response is the same result as the library's `analyze()`: `score`, `verdict`, `confidence`,
+`context`, `capped`, `categories`, `rules`, `signals`, `findings` and `discounted`, plus
+`elapsedMs`. Typical documents take 5–20 ms.
+
+Errors return a JSON `{ "error": "…" }` with status 400 (bad input), 405, 413 (too large) or
+429 (rate limited, with `Retry-After`). CORS is open by default so browsers on other sites can
+call it; set `CORS_ORIGIN` to restrict it.
+
+`GET /api/fetch?url=…` returns `{ url, status, contentType, text }` for a public page. The web
+app uses it, and it does not send CORS headers. `GET /api/health` returns
+`{ ok, version, fetch }`.
+
+### Safety
+
+The page fetcher refuses anything that is not a public web page:
+
+- loopback, private, link-local and cloud metadata addresses (`169.254.169.254`), IPv4 and IPv6
+- encoded forms of those addresses, such as `0x7f000001` and `::ffff:127.0.0.1`
+- `.local` and `.internal` names
+- ports other than 80 and 443
+- addresses with embedded credentials
+
+Each address a host name resolves to is checked when the connection opens, so a changing DNS
+answer cannot slip past. Each redirect is checked the same way, at most five are followed, and
+pages are limited to 3 MB, text types only, and 12 seconds.
+
+The server sends a strict Content Security Policy and serves only `web/`, `src/` and `samples/`.
+
+## DEPLOY
+
+The web app is static and does all its analysis in the browser. The API needs Node.js 20.11 or
+newer and has no dependencies.
+
+### Vercel
+
+Import the repository at <https://vercel.com/new> with no build command and no framework preset.
+`vercel.json` sets the security headers and redirects `/` to the app, and the files in `api/`
+become serverless functions for `/api/analyze`, `/api/fetch` and `/api/health`.
+
+### Docker (Render, Fly.io, Railway, Cloud Run, a VPS…)
+
+```bash
+docker build -t slop-shutter .
+```
+
+```bash
+docker run -p 8080:8080 slop-shutter
+```
+
+### Any Node host
+
+```bash
+npm run start:prod
+```
+
+This listens on `0.0.0.0` and the `PORT` the host provides (8080 if none).
+
+### Static only (GitHub Pages, Netlify, S3)
+
+Publish the repository as static files and open `/web/`. Everything works except fetching pages
+by address and the API. The app detects that and hides the address box.
+
+### Settings
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PORT` | `4173` locally, `8080` in Docker | port to listen on |
+| `HOST` | `127.0.0.1` (`0.0.0.0` in Docker) | address to bind |
+| `RATE_LIMIT_ANALYZE` | `120` | analysis requests per client per minute |
+| `RATE_LIMIT_FETCH` | `20` | page fetches per client per minute |
+| `TRUST_PROXY` | off (on for Vercel) | set to `1` behind a proxy so limits use `X-Forwarded-For` |
+| `CORS_ORIGIN` | `*` | allowed origin for `/api/analyze` |
+| `DISABLE_FETCH` | off | set to `1` to turn off page fetching |
+
+Rate limits are kept in memory for each server instance. For a large public deployment, put the
+service behind your platform's own rate limiting as well.
+
 ## TRAINING
 
 Put hand-written files in one folder and generated files in another, then:
@@ -163,8 +272,11 @@ src/engine.js     features, model, scoring, explanations
 src/model.js      training and evaluation
 src/report.js     terminal, Markdown and JSON output
 bin/              command line
-web/              browser interface
-server.js         local static server and page fetcher (binds to 127.0.0.1)
+web/              browser interface (app.js, worker.js, styles.css)
+server.js         web server: static files, API routes, security headers
+server/           API handlers, guarded page fetcher, rate limits
+api/              serverless entry points (Vercel)
+Dockerfile        container image
 samples/          labelled examples used by the demo and tests
 test/             node:test suites
 ```

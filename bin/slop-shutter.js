@@ -11,7 +11,7 @@ Usage
   slop-shutter [scan] <file|dir|url>...   Scan files, folders (recursively) or web pages
   slop-shutter scan -                      Read from standard input
   slop-shutter train --human <dir> --ai <dir> [-o model.json]
-  slop-shutter serve [--port 4173]         Open the web interface
+  slop-shutter serve [--port 4173] [--host 127.0.0.1]   Run the web app and HTTP API
 
 Scan options
   --json               Print results as JSON
@@ -55,6 +55,7 @@ function parseArgs(argv) {
       case '--ai': opts.ai = val(); break;
       case '-o': case '--out': opts.out = val(); break;
       case '--port': opts.port = Number(val()); break;
+      case '--host': opts.host = val(); break;
       default:
         if (a.startsWith('--')) fail(`unknown option ${a}`);
         opts._.push(a);
@@ -152,7 +153,7 @@ async function main() {
   if (cmd === 'train') return trainCmd(opts);
   if (cmd === 'serve') {
     const { serve } = await import('../server.js');
-    return serve({ port: opts.port || 4173, root: resolve(import.meta.dirname, '..') });
+    return serve({ port: opts.port || Number(process.env.PORT) || 4173, host: opts.host, root: resolve(import.meta.dirname, '..') });
   }
   return scan(opts);
 }

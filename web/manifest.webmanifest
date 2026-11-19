@@ -1,0 +1,11 @@
+{
+  "name": "Slop Shutter",
+  "short_name": "Slop Shutter",
+  "description": "Find AI-generated patterns in prose, web pages and code.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#16130e",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -93,7 +93,7 @@ export function detectContext(doc, override = 'auto') {
 
   const label = genre === 'technical' ? 'Technical document'
     : genre === 'code' ? (testFile ? 'Test code' : 'Source code')
-      : 'General prose';
+      : doc.kind === 'html' ? 'Web page' : 'General prose';
   return { genre, label, testFile, markers, override };
 }
 
