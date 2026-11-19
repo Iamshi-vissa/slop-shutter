@@ -142,6 +142,9 @@ export function applyContext(findings, doc, ctx, rulesById) {
     return raw.slice(a, b === -1 ? raw.length : b);
   };
   for (const f of findings) {
+    // Quotation marks mean "mention" only in prose. In code they delimit string literals,
+    // and a placeholder key inside a string is exactly what the rule is for.
+    if (doc.kind === 'code' || rulesById[f.rule].scope[doc.kind] !== 'text') continue;
     const before = raw[f.start - 1] || '';
     const after = raw.slice(f.end, f.end + 4).match(/^[\w\s.,!?…:;)-]{0,3}?(["”'’])/);
     if (/["“'‘]/.test(before) && after) { set(f, 0, 'Quoted as an example, not used'); continue; }

@@ -1,7 +1,9 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import dns from 'node:dns';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 process.env.RATE_LIMIT_ANALYZE = '25';
 const { createApp } = await import('../server.js');
@@ -9,8 +11,14 @@ const { safeFetch, checkUrl, isBlockedAddress } = await import('../server/safe-f
 
 let server;
 let base;
+// A stand-in for the built app, so these tests do not depend on a fresh build.
+const staticDir = mkdtempSync(join(tmpdir(), 'slop-dist-'));
+mkdirSync(join(staticDir, 'assets'));
+writeFileSync(join(staticDir, 'index.html'), '<!doctype html><title>Slop Shutter</title>');
+writeFileSync(join(staticDir, 'assets', 'app-abc123.js'), 'export {};');
+
 before(async () => {
-  server = createApp();
+  server = createApp({ staticDir, production: true });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -77,15 +85,19 @@ test('address classification', () => {
   assert.equal(checkUrl('https://example.com/a?b=1').hostname, 'example.com');
 });
 
-test('only the public folders are served, with security headers', async () => {
-  const page = await fetch(`${base}/web/`);
+test('only the built app is served, with security headers and caching', async () => {
+  const page = await fetch(`${base}/`);
   assert.equal(page.status, 200);
   assert.match(page.headers.get('content-security-policy'), /script-src 'self'/);
   assert.equal(page.headers.get('x-content-type-options'), 'nosniff');
-  for (const p of ['/server.js', '/server/handlers.js', '/package.json', '/test/server.test.js', '/web/../server.js', '/%2e%2e/etc/passwd']) {
+  assert.match(page.headers.get('cache-control'), /must-revalidate/);
+  const asset = await fetch(`${base}/assets/app-abc123.js`);
+  assert.match(asset.headers.get('cache-control'), /immutable/);
+  for (const p of ['/server.js', '/server/handlers.js', '/package.json', '/src/index.js', '/test/server.test.js', '/assets/../../server.js', '/%2e%2e/etc/passwd']) {
     assert.notEqual((await fetch(`${base}${p}`)).status, 200, p);
   }
-  assert.equal((await fetch(`${base}/src/index.js`)).status, 200);
+  const old = await fetch(`${base}/web/`, { redirect: 'manual' });
+  assert.equal(old.status, 301);
   assert.equal((await fetch(`${base}/api/health`)).status, 200);
 });
 

@@ -13,14 +13,13 @@ import { analyzeHandler, fetchHandler, healthHandler, sendJSON } from './server/
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
+  '.json': 'application/json; charset=utf-8', '.map': 'application/json; charset=utf-8', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json', '.txt': 'text/plain; charset=utf-8',
   // samples are served as plain text whatever their extension
   '.md': 'text/plain; charset=utf-8', '.py': 'text/plain; charset=utf-8', '.jsx': 'text/plain; charset=utf-8',
 };
 
-// Only these folders are public. Source for the server, tests and tooling is not served.
-const PUBLIC = ['web/', 'src/', 'samples/'];
+// Only the built web app (dist/, from `npm run build`) is public.
 
 export const SECURITY_HEADERS = {
   'content-security-policy': [
@@ -43,26 +42,32 @@ export const SECURITY_HEADERS = {
 };
 
 async function serveStatic(root, pathname, res, production) {
-  const rel = decodeURIComponent(pathname).replace(/^\/+/, '').replace(/\/$/, '/index.html');
-  if (!PUBLIC.some((p) => rel.startsWith(p))) return sendJSON(res, 404, { error: 'Not found' });
+  let rel;
+  try { rel = decodeURIComponent(pathname).replace(/^\/+/, ''); } catch { return sendJSON(res, 400, { error: 'Bad path' }); }
+  if (rel === '' || rel.endsWith('/')) rel += 'index.html';
   const path = normalize(join(root, rel));
   if (!path.startsWith(root + sep)) return sendJSON(res, 403, { error: 'Forbidden' });
   try {
     if (!(await stat(path)).isFile()) throw new Error('not a file');
     const body = await readFile(path);
+    const hashed = rel.startsWith('assets/');
     res.writeHead(200, {
       ...SECURITY_HEADERS,
       'content-type': TYPES[extname(path)] || 'application/octet-stream',
-      'cache-control': production ? 'public, max-age=300, must-revalidate' : 'no-store',
+      'cache-control': !production ? 'no-store' : hashed ? 'public, max-age=31536000, immutable' : 'public, max-age=300, must-revalidate',
     });
     res.end(body);
   } catch {
+    if (rel === 'index.html') {
+      res.writeHead(503, { 'content-type': 'text/plain; charset=utf-8' });
+      return res.end('The web app has not been built. Run "npm run build", then start the server again.');
+    }
     sendJSON(res, 404, { error: 'Not found' });
   }
 }
 
-export function createApp({ root, production = process.env.NODE_ENV === 'production' } = {}) {
-  const base = resolve(root || fileURLToPath(new URL('.', import.meta.url)));
+export function createApp({ root, staticDir, production = process.env.NODE_ENV === 'production' } = {}) {
+  const base = resolve(staticDir || join(root || fileURLToPath(new URL('.', import.meta.url)), 'dist'));
   return createServer(async (req, res) => {
     const { pathname } = new URL(req.url, 'http://localhost');
     try {
@@ -70,8 +75,8 @@ export function createApp({ root, production = process.env.NODE_ENV === 'product
       if (pathname === '/api/fetch') return await fetchHandler(req, res);
       if (pathname === '/api/health') return healthHandler(req, res);
       if (pathname.startsWith('/api/')) return sendJSON(res, 404, { error: 'Unknown endpoint' });
-      if (pathname === '/' || pathname === '/web') {
-        res.writeHead(302, { location: '/web/' });
+      if (pathname === '/web' || pathname.startsWith('/web/')) {
+        res.writeHead(301, { location: '/' });
         return res.end();
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') return sendJSON(res, 405, { error: 'Method not allowed' });
@@ -83,8 +88,8 @@ export function createApp({ root, production = process.env.NODE_ENV === 'product
   });
 }
 
-export function serve({ port = Number(process.env.PORT) || 4173, host = process.env.HOST || '127.0.0.1', root } = {}) {
-  const server = createApp({ root });
+export function serve({ port = Number(process.env.PORT) || 4173, host = process.env.HOST || '127.0.0.1', root, staticDir } = {}) {
+  const server = createApp({ root, staticDir });
   server.listen(port, host, () => {
     const shown = host === '0.0.0.0' || host === '::' ? 'localhost' : host;
     process.stdout.write(`Slop Shutter is running at http://${shown}:${port}/\n`);

@@ -1,5 +1,5 @@
 // Runs the analysis off the main thread so typing stays smooth on long documents.
-import { analyze } from '../src/index.js';
+import { analyze } from '../../src/index.js';
 
 self.onmessage = ({ data }) => {
   const { id, text, opts } = data;

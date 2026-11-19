@@ -1,0 +1,14 @@
+/* Loaded before the app: only the message shown if the app's scripts never start. */
+html { background: #0b0b0c; color: #edebe6; }
+.boot-fail {
+  position: fixed; left: 50%; top: 50%; z-index: 50;
+  width: min(520px, calc(100vw - 32px)); padding: 22px 24px;
+  border: 1px solid #34343b; background: #121214;
+  font: 14px/1.55 ui-sans-serif, system-ui, sans-serif; color: #a7a59f;
+  transform: translate(-50%, -50%); opacity: 0; visibility: hidden;
+  animation: boot-fail 1ms 4s forwards;
+}
+.boot-fail p { margin: 0 0 8px; }
+.boot-fail b { color: #edebe6; }
+.boot-fail code { font: 12.5px ui-monospace, monospace; padding: 1px 5px; background: #18181b; }
+@keyframes boot-fail { to { opacity: 1; visibility: visible; } }

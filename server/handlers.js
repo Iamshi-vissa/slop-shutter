@@ -8,7 +8,7 @@
 import { analyze, toJSON } from '../src/index.js';
 import { safeFetch, FetchError } from './safe-fetch.js';
 
-export const VERSION = '1.1.0';
+export const VERSION = '1.2.0';
 const MAX_BODY = 1_000_000; // characters of text accepted by /api/analyze
 const KINDS = new Set(['prose', 'html', 'code']);
 const CONTEXTS = new Set(['auto', 'technical', 'general']);

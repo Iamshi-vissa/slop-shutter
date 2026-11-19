@@ -87,25 +87,59 @@ cd slop-shutter
 ### Web interface
 
 ```bash
+npm install
+```
+
+```bash
 npm start
 ```
 
-Then open <http://localhost:4173/>.
+This builds the app and serves it at <http://localhost:4173/> together with the API. For
+development with instant reload, run `npm run serve:api` in one terminal and `npm run dev` in
+another, then open <http://localhost:5173/>.
 
-- **Start:** paste, drop files, fetch a web page by address, or pick one of eight samples.
-- **Live highlighting:** flags are highlighted as you type. Analysis runs in a Web Worker so long
-  documents stay smooth, and highlights stay pinned to the text while it works.
-- **Explanations:** every signal opens to show why it counts and each passage it matched. Flags that
-  context set aside are drawn with a dotted outline and listed under *Checked, not counted*.
-- **Navigation:** a minimap beside the scrollbar shows where flags are. Step through them with
-  <kbd>F8</kbd> and <kbd>Shift</kbd>+<kbd>F8</kbd>, or the arrows at the bottom right. Press <kbd>?</kbd>
-  for all shortcuts.
-- **Export:** Markdown report, JSON, or a ready-made `curl` call to the API.
-- **Everywhere:** light and dark themes, a Text/Report switch on phones, keyboard access
-  throughout, and no animation for viewers who ask for reduced motion.
+**Design.** The interface is styled as a darkroom instrument: near-black ground, square corners,
+Archivo for labels and IBM Plex Mono for text and numbers. A light theme is available. Colour is
+used only to carry meaning:
 
-Text is analysed in your browser. It only goes to the server when you fetch a web page by
-address or call the API.
+| Colour | Family | Categories |
+| --- | --- | --- |
+| Safelight red | Language | chatbot residue, stock phrases, model vocabulary, rhetorical templates |
+| Amber | Form | formatting tells, rhythm |
+| Cyan | Code & web | narrating comments, placeholders, template web copy |
+| Green | Human evidence | casual register, varied rhythm |
+| Grey, dashed | Not counted | flags that context explains |
+
+The same colour marks a flag in the text, in the minimap, in the composition bar and in the
+signal list. How strong the colour is shows how much the flag counts. Verdicts use green,
+amber and red.
+
+**Animated components** come from [React Bits](https://reactbits.dev), and each has a job:
+
+| Component | Where | What it shows |
+| --- | --- | --- |
+| TrueFocus | start screen | focus brackets moving between the stock phrases of a sample sentence |
+| Counter | score | the score rolling like an odometer |
+| DecryptedText | verdict | the verdict resolving when it changes |
+| SpotlightCard | score card, samples | a cursor-following light tinted to the verdict or sample type |
+| FadeContent | report | report sections fading in when a document opens |
+| Noise | whole app | a faint film grain |
+
+They are copied into `web/src/reactbits/` under their MIT + Commons Clause licence
+(`web/src/reactbits/LICENSE.md`). That licence lets you use them in this or any product,
+paid or free, but not sell or redistribute the components on their own.
+
+**Features:**
+
+- **Highlighting:** flags are highlighted as you type. Analysis runs in a Web Worker, and highlights
+  stay pinned to the text while it works.
+- **Explanations:** each signal opens to show why it counts and every passage it matched.
+- **Navigation:** a minimap marks every flag. Step through them with <kbd>F8</kbd> and
+  <kbd>Shift</kbd>+<kbd>F8</kbd>.
+- **Input:** fetch a web page by address, drop files, or paste anywhere.
+- **Export:** Markdown, JSON, or a ready-made `curl` call to the API.
+- **Phones:** a Text/Report switch.
+- **Motion:** none for viewers who ask for reduced motion.
 
 ### Command line
 
@@ -197,14 +231,14 @@ The server sends a strict Content Security Policy and serves only `web/`, `src/`
 
 ## DEPLOY
 
-The web app is static and does all its analysis in the browser. The API needs Node.js 20.11 or
-newer and has no dependencies.
+The web app is built into static files and does all its analysis in the browser. The server and
+API need Node.js 20.11 or newer and no runtime dependencies.
 
 ### Vercel
 
-Import the repository at <https://vercel.com/new> with no build command and no framework preset.
-`vercel.json` sets the security headers and redirects `/` to the app, and the files in `api/`
-become serverless functions for `/api/analyze`, `/api/fetch` and `/api/health`.
+Import the repository at <https://vercel.com/new>. `vercel.json` sets everything: it builds the
+app with `npm run build`, serves `dist/`, adds the security headers, and turns the files in
+`api/` into serverless functions for `/api/analyze`, `/api/fetch` and `/api/health`.
 
 ### Docker (Render, Fly.io, Railway, Cloud Run, a VPS…)
 
@@ -219,6 +253,14 @@ docker run -p 8080:8080 slop-shutter
 ### Any Node host
 
 ```bash
+npm ci
+```
+
+```bash
+npm run build
+```
+
+```bash
 npm run start:prod
 ```
 
@@ -226,8 +268,8 @@ This listens on `0.0.0.0` and the `PORT` the host provides (8080 if none).
 
 ### Static only (GitHub Pages, Netlify, S3)
 
-Publish the repository as static files and open `/web/`. Everything works except fetching pages
-by address and the API. The app detects that and hides the address box.
+Run `npm run build` and publish the `dist/` folder. Everything works except fetching pages by
+address and the API. The app detects that and hides the address box.
 
 ### Settings
 
@@ -272,8 +314,11 @@ src/engine.js     features, model, scoring, explanations
 src/model.js      training and evaluation
 src/report.js     terminal, Markdown and JSON output
 bin/              command line
-web/              browser interface (app.js, worker.js, styles.css)
-server.js         web server: static files, API routes, security headers
+web/              web app (React + Vite): src/App.jsx, src/components/, src/styles.css
+web/src/reactbits React Bits components used by the app
+dist/             built web app (npm run build; not committed)
+vite.config.js    build configuration
+server.js         web server: built app, API routes, security headers
 server/           API handlers, guarded page fetcher, rate limits
 api/              serverless entry points (Vercel)
 Dockerfile        container image

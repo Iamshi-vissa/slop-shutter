@@ -1,239 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Slop Shutter</title>
   <meta name="description" content="Find AI-generated patterns in prose, web pages and code, with every flag explained.">
-  <meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#100f0e" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#0b0b0c">
   <meta property="og:title" content="Slop Shutter">
   <meta property="og:description" content="Find AI-generated patterns in prose, web pages and code, with every flag explained.">
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="styles.css">
-  <script type="module" src="app.js"></script>
+  <link rel="stylesheet" href="/boot.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 </head>
 <body>
-<div class="boot-fail" id="boot-fail" role="alert">
-  <p><b>Slop Shutter could not start.</b></p>
-  <p>If you opened this file straight from disk, browsers block the scripts it needs. Run
-    <code>npm start</code> in the project folder and open <code>http://localhost:4173</code>.
-    Otherwise, try a current version of Chrome, Edge, Firefox or Safari.</p>
-</div>
-<div class="app" id="app" data-view="text">
-
-  <header class="topbar">
-    <a class="brand" href="./" aria-label="Slop Shutter, start over">
-      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
-        <rect class="mark-bg" x="2" y="2" width="28" height="28" rx="7"/>
-        <rect class="mark-slat s1" x="8" y="8.5" width="16" height="3" rx="1.5"/>
-        <rect class="mark-slat s2" x="8" y="14.5" width="16" height="3" rx="1.5"/>
-        <rect class="mark-slat s3" x="8" y="20.5" width="9" height="3" rx="1.5"/>
-      </svg>
-      <span class="brand-name">Slop Shutter</span>
-    </a>
-    <span class="status" id="status" role="status">
-      <i class="status-dot" aria-hidden="true"></i><span id="status-text">Live · runs in your browser</span>
-    </span>
-    <nav class="top-actions" aria-label="App">
-      <button class="btn ghost" id="open-file" title="Open files (Ctrl+O)">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 13.5v2.5h12v-2.5M10 3.5v9M6.5 7 10 3.5 13.5 7"/></svg>
-        <span class="label">Open</span>
-      </button>
-      <button class="btn ghost icon" id="shortcuts" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="5" width="15" height="10" rx="2"/><path d="M5.5 8h1M9.5 8h1M13.5 8h1M6 11.5h8"/></svg>
-      </button>
-      <button class="btn ghost icon" id="theme" title="Switch theme" aria-label="Switch theme">
-        <svg class="i-sun" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4"/></svg>
-        <svg class="i-moon" viewBox="0 0 20 20" aria-hidden="true"><path d="M16 12.5A6.5 6.5 0 0 1 7.5 4a6.5 6.5 0 1 0 8.5 8.5z"/></svg>
-      </button>
-      <input type="file" id="file-input" multiple hidden
-        accept=".txt,.md,.markdown,.mdx,.rst,.html,.htm,.js,.mjs,.jsx,.ts,.tsx,.vue,.svelte,.astro,.css,.scss,.py,.rb,.go,.rs,.java,.php,.sh,.sql,text/*">
-    </nav>
-  </header>
-
-  <div class="viewswitch" role="tablist" aria-label="View">
-    <button role="tab" data-view="text" aria-selected="true">Text</button>
-    <button role="tab" data-view="report" aria-selected="false">Report <span class="pill" id="mobile-score"></span></button>
-    <span class="viewswitch-thumb" aria-hidden="true"></span>
+  <div id="root"></div>
+  <noscript>Slop Shutter needs JavaScript to analyse text in your browser.</noscript>
+  <div class="boot-fail" id="boot-fail" role="alert">
+    <p><b>Slop Shutter could not start.</b></p>
+    <p>If you opened a file straight from disk, browsers block the scripts it needs. Run
+      <code>npm run build</code> then <code>npm start</code>, and open <code>http://localhost:4173</code>.</p>
   </div>
-
-  <main class="workspace">
-    <section class="source" aria-label="Source">
-      <div class="tabs" role="tablist" aria-label="Documents" id="tabs"></div>
-
-      <div class="toolbar">
-        <div class="segmented" role="radiogroup" aria-label="Read input as" id="kind">
-          <span class="seg-thumb" aria-hidden="true"></span>
-          <button role="radio" data-kind="auto">Auto</button>
-          <button role="radio" data-kind="prose">Prose</button>
-          <button role="radio" data-kind="html">Web page</button>
-          <button role="radio" data-kind="code">Code</button>
-        </div>
-        <label class="select" title="How to read word use and formats">
-          <span>Context</span>
-          <select id="context">
-            <option value="auto">Auto</option>
-            <option value="technical">Technical</option>
-            <option value="general">General</option>
-          </select>
-          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 8l4 4 4-4"/></svg>
-        </label>
-        <span class="detected" id="detected"></span>
-        <form class="url-form" id="url-form" hidden>
-          <label class="visually-hidden" for="url">Web page address</label>
-          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2.2 2 2.2 12 0 14M10 3c-2.2 2-2.2 12 0 14"/></svg>
-          <input id="url" type="text" inputmode="url" placeholder="Scan a web page…" autocomplete="off" spellcheck="false">
-          <kbd class="url-kbd">Ctrl K</kbd>
-          <button class="btn primary small" type="submit"><span>Fetch</span></button>
-        </form>
-      </div>
-
-      <div class="editor-wrap" id="editor-wrap">
-        <div class="editor-scroll" id="editor-scroll">
-          <div class="editor">
-            <pre class="layer" id="layer" aria-hidden="true"></pre>
-            <textarea id="input" spellcheck="false" autocapitalize="off" autocomplete="off"
-              aria-label="Text or code to scan"></textarea>
-          </div>
-        </div>
-
-        <div class="hero" id="hero">
-          <p class="eyebrow"><span class="eyebrow-dot"></span>AI slop detector</p>
-          <h1 class="hero-title">See what reads as <em>machine-made</em>.</h1>
-          <p class="hero-sub">Paste text, drop files or fetch a page. Every flag is explained, and technical
-            word use is checked before it counts.</p>
-          <div class="hero-actions">
-            <button class="btn primary" id="hero-paste">
-              <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="4" width="10" height="13" rx="2"/><path d="M8 4V3h4v1"/></svg>
-              Paste from clipboard
-            </button>
-            <button class="btn" id="hero-open">
-              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 13.5v2.5h12v-2.5M10 3.5v9M6.5 7 10 3.5 13.5 7"/></svg>
-              Open files
-            </button>
-            <span class="hero-hint">or just start typing</span>
-          </div>
-          <p class="samples-label">Try a sample</p>
-          <div class="samples" id="samples"></div>
-        </div>
-
-        <div class="scanline" aria-hidden="true"></div>
-        <div class="minimap" id="minimap" aria-hidden="true"></div>
-
-        <div class="flagnav" id="flagnav" hidden>
-          <button class="flagnav-btn" id="flag-prev" title="Previous flag (Shift+F8)" aria-label="Previous flag">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 12l4-4 4 4"/></svg>
-          </button>
-          <span class="flagnav-text" id="flagnav-text" aria-live="polite"></span>
-          <button class="flagnav-btn" id="flag-next" title="Next flag (F8)" aria-label="Next flag">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 8l4 4 4-4"/></svg>
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <aside class="report" aria-label="Report" id="report">
-      <section class="scorecard" id="scorecard" data-verdict="">
-        <div class="score-row">
-          <div class="shutter" id="shutter" aria-hidden="true"></div>
-          <div class="score-text">
-            <div class="score" aria-live="polite" aria-atomic="true">
-              <span class="score-num" id="score-num">–</span><span class="score-of">/100</span>
-            </div>
-            <p class="verdict" id="verdict">Waiting for input</p>
-          </div>
-        </div>
-        <p class="score-meta" id="score-meta">Scores how much the text reads as generated.</p>
-        <div class="meter" aria-hidden="true">
-          <div class="meter-track"><span class="z z1"></span><span class="z z2"></span><span class="z z3"></span></div>
-          <span class="meter-marker" id="meter-marker"></span>
-          <div class="meter-labels"><span>Human</span><span>Mixed</span><span>Generated</span></div>
-        </div>
-        <p class="context-line" id="context-line" hidden></p>
-        <p class="capped" id="capped" hidden></p>
-      </section>
-
-      <section class="panel" id="breakdown-panel" hidden>
-        <h2 class="panel-title">Where the score comes from</h2>
-        <ul class="breakdown" id="breakdown"></ul>
-      </section>
-
-      <section class="panel grow" id="signals-panel" hidden>
-        <div class="panel-head">
-          <h2 class="panel-title">Signals <span class="count" id="signal-count"></span></h2>
-          <div class="menu">
-            <button class="btn ghost small" id="export-btn" aria-haspopup="true" aria-expanded="false">
-              Export
-              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 8l4 4 4-4"/></svg>
-            </button>
-            <div class="menu-pop" id="export-menu" role="menu" hidden>
-              <button role="menuitem" id="copy-md">Copy Markdown report</button>
-              <button role="menuitem" id="download-json">Download JSON</button>
-              <button role="menuitem" id="copy-curl">Copy API request</button>
-            </div>
-          </div>
-        </div>
-        <div class="chips" id="chips" role="toolbar" aria-label="Filter by category"></div>
-        <ul class="signals" id="signals"></ul>
-        <div class="checked" id="checked" hidden>
-          <h3 class="checked-title">Checked, not counted <span class="count" id="checked-count"></span></h3>
-          <p class="checked-sub">Flags that context explains: technical word senses, example code, quoted
-            mentions, standard formats and one-offs.</p>
-          <ul class="signals" id="checked-list"></ul>
-        </div>
-      </section>
-
-      <section class="panel how" id="how">
-        <h2 class="panel-title">How it reads your text</h2>
-        <ol class="steps">
-          <li><b>Patterns.</b> About sixty rules for stock phrases, model vocabulary, rhetorical templates,
-            narrating comments, placeholders and template web styling.</li>
-          <li><b>Context.</b> Technical word senses, code examples, quoted mentions, tests and reference
-            formats are checked before a flag counts.</li>
-          <li><b>Rhythm.</b> Sentence and paragraph variation across the whole document.</li>
-          <li><b>Corroboration.</b> A likely-AI verdict needs two independent kinds of evidence.</li>
-        </ol>
-        <p class="fineprint">A score is evidence, not proof. Use it to find passages worth a second look, not
-          to accuse anyone.</p>
-      </section>
-    </aside>
-  </main>
-</div>
-
-<dialog class="dialog" id="shortcuts-dialog" aria-labelledby="shortcuts-title">
-  <form method="dialog">
-    <h2 id="shortcuts-title">Keyboard shortcuts</h2>
-    <dl class="keys">
-      <dt><kbd>F8</kbd> / <kbd>Alt</kbd><kbd>↓</kbd></dt><dd>Next flag</dd>
-      <dt><kbd>Shift</kbd><kbd>F8</kbd> / <kbd>Alt</kbd><kbd>↑</kbd></dt><dd>Previous flag</dd>
-      <dt><kbd>Ctrl</kbd><kbd>O</kbd></dt><dd>Open files</dd>
-      <dt><kbd>Ctrl</kbd><kbd>K</kbd></dt><dd>Scan a web page</dd>
-      <dt><kbd>Alt</kbd><kbd>N</kbd></dt><dd>New document</dd>
-      <dt><kbd>Esc</kbd></dt><dd>Clear highlight focus</dd>
-      <dt><kbd>?</kbd></dt><dd>This list</dd>
-    </dl>
-    <p class="dialog-note">On macOS use <kbd>⌘</kbd> for <kbd>Ctrl</kbd>.</p>
-    <button class="btn primary" value="close">Done</button>
-  </form>
-</dialog>
-
-<div class="dropzone" id="dropzone" hidden>
-  <div class="drop-card">
-    <svg class="drop-mark" viewBox="0 0 32 32" aria-hidden="true">
-      <rect class="mark-bg" x="2" y="2" width="28" height="28" rx="7"/>
-      <rect class="mark-slat s1" x="8" y="8.5" width="16" height="3" rx="1.5"/>
-      <rect class="mark-slat s2" x="8" y="14.5" width="16" height="3" rx="1.5"/>
-      <rect class="mark-slat s3" x="8" y="20.5" width="9" height="3" rx="1.5"/>
-    </svg>
-    <p>Drop to scan</p>
-    <span>Text, Markdown, HTML, CSS and code files</span>
-  </div>
-</div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

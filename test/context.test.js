@@ -103,3 +103,8 @@ test('this project\'s own README is not flagged for quoting the patterns it dete
   const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
   assert.ok(analyze(readme, { filename: 'README.md' }).score < 30);
 });
+
+test('quotes in code are string literals, not mentions', () => {
+  const r = analyze('API_KEY = "your-api-key-here"\nclient = Client(API_KEY)\n', { filename: 'app.py' });
+  assert.equal(counted(r, 'api-key-placeholder').length, 1);
+});
