@@ -889,6 +889,7 @@ function restore() {
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────
+$('boot-fail')?.remove();
 if (restore()) select(state.active, { reveal: true });
 else addDoc('Untitled');
 document.fonts?.ready.then(() => { renderToolbar(); requestAnimationFrame(renderMinimap); });

@@ -95,5 +95,13 @@ export function serve({ port = Number(process.env.PORT) || 4173, host = process.
   return server;
 }
 
+// Default export: a plain request handler, so platforms that load this file as a function
+// (Vercel's Node.js preset, for example) can serve the whole app through it.
+let app;
+export default function handler(req, res) {
+  app ??= createApp();
+  app.emit('request', req, res);
+}
+
 // Run directly: node server.js
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) serve();
