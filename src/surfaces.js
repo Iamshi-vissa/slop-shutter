@@ -4,6 +4,8 @@
 // text blanked to spaces (newlines are kept). That way a match offset in any surface is
 // also an offset in the original file, and highlights never need remapping.
 
+import { codeRegions } from './context.js';
+
 const EXT = {
   prose: ['txt', 'md', 'markdown', 'mdx', 'rst', 'text', 'adoc', 'org', 'tex', 'rtf', 'eml'],
   html: ['html', 'htm', 'xhtml', 'shtml'],
@@ -59,7 +61,7 @@ const blank = (s) => s.replace(/[^\n]/g, ' ');
 /** Keep visible text of an HTML document; blank tags, scripts, styles and comments. */
 export function htmlText(src) {
   return src
-    .replace(/<(script|style|noscript|template|svg)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, blank)
+    .replace(/<(script|style|noscript|template|svg|pre|code|kbd|samp|var)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, blank)
     .replace(/<!--[\s\S]*?-->/g, blank)
     .replace(/<\/?[a-zA-Z!][^>]*>/g, blank)
     .replace(/&[a-z]+;|&#\d+;/gi, (m) => (m === '&mdash;' || m === '&#8212;' ? m : blank(m)));
@@ -101,6 +103,13 @@ export function codeComments(src, lang) {
   return { text: out.join(''), ranges };
 }
 
+function blankRanges(src, ranges) {
+  if (!ranges.length) return src;
+  const out = src.split('');
+  for (const [a, b] of ranges) for (let i = a; i < b; i++) if (out[i] !== '\n') out[i] = ' ';
+  return out.join('');
+}
+
 /** Build the document record the engine works on. */
 export function prepare(source, filename = '', kindOverride) {
   const raw = String(source ?? '').replace(/\r\n?/g, '\n');
@@ -112,7 +121,12 @@ export function prepare(source, filename = '', kindOverride) {
   }
   let text = raw;
   let commentRanges = [];
+  const regions = info.kind === 'code' ? [] : codeRegions(raw, info.kind);
+  if (info.kind === 'prose') text = blankRanges(raw, regions);
   if (info.kind === 'html') text = htmlText(raw);
   if (info.kind === 'code') ({ text, ranges: commentRanges } = codeComments(raw, info.lang));
-  return { filename, ...info, raw, text, commentRanges };
+  // Code spans inside comments, and web addresses anywhere, are not prose.
+  if (info.kind === 'code') text = text.replace(/`[^`\n]+`/g, blank);
+  text = text.replace(/\bhttps?:\/\/[^\s)>\]"'`]+|\]\([^)\s]+\)/g, blank);
+  return { filename, ...info, raw, text, commentRanges, codeRegions: regions };
 }

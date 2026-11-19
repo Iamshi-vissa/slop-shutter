@@ -7,6 +7,7 @@
 import { RULES, CATEGORIES } from './rules.js';
 import { prepare } from './surfaces.js';
 import { documentSignals, countWords, lineAt } from './stats.js';
+import { SENSES, detectContext, applyContext } from './context.js';
 
 export const DEFAULT_MODEL = Object.freeze({
   name: 'default',
@@ -28,7 +29,7 @@ const sigmoid = (x) => 1 / (1 + Math.exp(-x));
 // Pre-compile vocabulary terms once.
 const compiled = RULES.map((rule) => ({
   ...rule,
-  terms: rule.terms?.map(([src, w], i) => ({ i, w, re: new RegExp(`\\b(?:${src})\\b`, 'giu') })),
+  terms: rule.terms?.map(([src, w, sense], i) => ({ i, w, sense: sense && SENSES[sense], re: new RegExp(`\\b(?:${src})\\b`, 'giu') })),
 }));
 
 function surfaceFor(rule, doc) {
@@ -50,6 +51,21 @@ function* matches(re, text) {
   }
 }
 
+/** If the words around a match show the technical meaning, say so. */
+function technicalSense(sense, surface, m) {
+  const lineStart = surface.lastIndexOf('\n', m.start - 1) + 1;
+  let lineEnd = surface.indexOf('\n', m.end);
+  if (lineEnd === -1) lineEnd = surface.length;
+  const from = Math.max(lineStart, m.start - 60);
+  const window = surface.slice(from, Math.min(lineEnd, m.end + 60));
+  const hit = window.match(sense);
+  if (!hit) return null;
+  // The sense phrase must overlap or sit next to the word itself.
+  const at = from + hit.index;
+  if (at > m.end + 40 || at + hit[0].length < m.start - 40) return null;
+  return { factor: 0, reason: `Technical sense: “${hit[0].replace(/\s+/g, ' ').trim()}”` };
+}
+
 /** Run every rule over the document. Returns findings ordered by position. */
 export function findRules(doc) {
   const found = [];
@@ -57,14 +73,18 @@ export function findRules(doc) {
   for (const rule of compiled) {
     const surface = surfaceFor(rule, doc);
     if (!surface) continue;
-    const push = (m, key, weight) => {
+    const push = (m, key, weight, discount) => {
       const tag = `${rule.id}@${m.start}`;
       if (seen.has(tag)) return;
       seen.add(tag);
-      found.push({ rule: rule.id, category: rule.category, key, weight, start: m.start, end: m.end, text: m.text });
+      found.push({ rule: rule.id, category: rule.category, key, weight, start: m.start, end: m.end, text: m.text, ...(discount && { discount }) });
     };
     if (rule.terms) {
-      for (const t of rule.terms) for (const m of matches(t.re, surface)) push(m, `${rule.id}:${t.i}`, t.w);
+      for (const t of rule.terms) {
+        for (const m of matches(t.re, surface)) {
+          push(m, `${rule.id}:${t.i}`, t.w, t.sense && technicalSense(t.sense, surface, m));
+        }
+      }
     } else {
       for (const m of matches(rule.pattern, surface)) {
         if (rule.line) {
@@ -85,7 +105,10 @@ export function featurize(findings, signals, units) {
   const norm = Math.max(1, Math.sqrt(units / 300));
   const perKey = new Map();
   for (const f of findings) {
-    const e = perKey.get(f.key) || { rule: f.rule, weight: f.weight, count: 0 };
+    const w = f.weight * (f.discount ? f.discount.factor : 1);
+    if (w <= 0) continue;
+    const e = perKey.get(f.key) || { rule: f.rule, weight: 0, count: 0 };
+    e.weight = Math.max(e.weight, w);
     e.count++;
     perKey.set(f.key, e);
   }
@@ -106,22 +129,19 @@ export function logit(features, model = DEFAULT_MODEL) {
 /**
  * Analyse one document.
  * @param {string} source  file contents
- * @param {{filename?: string, kind?: 'prose'|'html'|'code', model?: object}} [opts]
+ * @param {{filename?: string, kind?: 'prose'|'html'|'code', context?: 'auto'|'technical'|'general', model?: object}} [opts]
  */
 export function analyze(source, opts = {}) {
   const model = opts.model || DEFAULT_MODEL;
   const doc = prepare(source, opts.filename || '', opts.kind);
-  const raw = findRules(doc);
+  const ctx = detectContext(doc, opts.context || 'auto');
+  const ruleMeta = Object.fromEntries(RULES.map((r) => [r.id, r]));
+  const raw = applyContext(findRules(doc), doc, ctx, ruleMeta);
   const { stats, signals } = documentSignals(doc);
   const units = doc.kind === 'code' ? stats.words : Math.max(stats.proseWords, 1);
   const features = featurize(raw, signals, units);
   const z = logit(features, model);
-  // Clamped to 1–99: the detector reports evidence, and is never certain.
-  const score = Math.min(99, Math.max(1, Math.round(100 * sigmoid(z))));
-
-  // Explain: per-rule contribution in logit points.
   const weightOf = (k) => model.weights[k] ?? model.scale;
-  const ruleMeta = Object.fromEntries(RULES.map((r) => [r.id, r]));
   const lineStarts = [0];
   for (let i = 0; i < doc.raw.length; i++) if (doc.raw[i] === '\n') lineStarts.push(i + 1);
 
@@ -131,6 +151,7 @@ export function analyze(source, opts = {}) {
       id: i,
       ...f,
       label: ruleMeta[f.rule].terms ? `"${f.text.toLowerCase()}"` : ruleMeta[f.rule].label,
+      counted: !f.discount || f.discount.factor > 0,
       line: line + 1,
       col: f.start - lineStarts[line] + 1,
     };
@@ -145,7 +166,7 @@ export function analyze(source, opts = {}) {
         category: meta.category,
         label: meta.label,
         why: meta.why,
-        count: findings.filter((f) => f.rule === id).length,
+        count: findings.filter((f) => f.rule === id && f.counted).length,
         contribution: round(weightOf(id) * value),
       };
     })
@@ -167,6 +188,35 @@ export function analyze(source, opts = {}) {
   }).filter((c) => c.contribution !== 0 || c.count > 0)
     .sort((a, b) => b.contribution - a.contribution);
 
+  // Corroboration: one kind of evidence on its own is not enough for a "likely AI" verdict.
+  // Chatbot residue is the exception, since nothing else produces it.
+  let score = Math.round(100 * sigmoid(z));
+  const independent = categories.filter((c) => c.contribution >= 0.6);
+  const residue = categories.find((c) => c.id === 'artifact')?.contribution >= 1;
+  let capped = null;
+  const ceiling = VERDICTS[1].max - 1;
+  if (score > ceiling && independent.length < 2 && !residue) {
+    capped = {
+      from: score,
+      reason: `All the evidence is ${independent[0] ? `of one kind (${independent[0].label.toLowerCase()})` : 'weak'}; a likely-AI verdict needs at least two independent kinds of signal.`,
+    };
+    score = ceiling;
+  }
+  // Clamped to 1–99: the detector reports evidence, and is never certain.
+  score = Math.min(99, Math.max(1, score));
+
+  // What context ruled out, grouped by reason.
+  const byReason = new Map();
+  for (const f of findings) {
+    if (!f.discount) continue;
+    const key = f.discount.reason.startsWith('Technical sense') ? 'Technical sense of the word' : f.discount.reason;
+    const g = byReason.get(key) || { reason: key, factor: f.discount.factor, count: 0, findings: [] };
+    g.count++;
+    g.findings.push(f.id);
+    byReason.set(key, g);
+  }
+  const discounted = [...byReason.values()].sort((a, b) => a.factor - b.factor || b.count - a.count);
+
   const confidence = units < 60 ? 'low' : units < 200 ? 'medium' : 'high';
 
   return {
@@ -177,6 +227,9 @@ export function analyze(source, opts = {}) {
     score,
     verdict: verdictFor(score),
     confidence,
+    context: ctx,
+    capped,
+    discounted,
     model: model.name || 'custom',
     logit: round(z),
     stats,

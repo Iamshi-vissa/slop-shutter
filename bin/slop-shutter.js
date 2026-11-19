@@ -18,6 +18,7 @@ Scan options
   --md                 Print a Markdown report
   --verbose, -v        List every flagged passage with its line and column
   --kind <k>           Treat input as prose, html or code instead of guessing
+  --context <c>        auto (default), technical or general: how to read word use and formats
   --model <file>       Score with a trained model instead of the default
   --fail-above <n>     Exit with status 1 if any file scores n or more (for CI)
   --min-score <n>      Only report files scoring n or more
@@ -43,6 +44,10 @@ function parseArgs(argv) {
       case '-v': case '--verbose': opts.verbose = true; break;
       case '--no-color': opts.color = false; break;
       case '--kind': opts.kind = val(); break;
+      case '--context':
+        opts.context = val();
+        if (!['auto', 'technical', 'general'].includes(opts.context)) fail('--context must be auto, technical or general');
+        break;
       case '--model': opts.model = val(); break;
       case '--fail-above': opts.failAbove = Number(val()); break;
       case '--min-score': opts.minScore = Number(val()); break;
@@ -105,7 +110,7 @@ async function scan(opts) {
   const inputs = await readInputs(opts._);
   if (!inputs.length) fail('no scannable files found');
   const results = inputs
-    .map((i) => analyze(i.text, { filename: i.name, kind: opts.kind || i.kind, model }))
+    .map((i) => analyze(i.text, { filename: i.name, kind: opts.kind || i.kind, context: opts.context, model }))
     .filter((r) => opts.minScore == null || r.score >= opts.minScore);
 
   if (opts.json) {

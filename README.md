@@ -41,11 +41,40 @@ while styling and copy rules read the raw source of web files (HTML, JSX/TSX, Vu
 3. A logistic model turns the features into a score from 1 to 99:
    under 30 *reads as human*, 30–59 *mixed signals*, 60 and over *likely AI-generated*.
 
+4. Corroboration: a *likely AI-generated* verdict needs at least two independent kinds of
+   evidence. Vocabulary alone, or formatting alone, is held at 59 (*mixed signals*), and the
+   report says so. Chatbot residue is the exception, since nothing else produces it.
+
 The default weights are hand-tuned. You can fit them to your own labelled examples
 (see [Training](#training)).
 
 **A score is evidence, not proof.** Careful writers use em dashes, and edited model output can
 read clean. Use it to find passages worth a second look, not to accuse anyone.
+
+## CONTEXT
+
+Many flagged words and formats are correct in technical writing. Before a flag counts,
+Slop Shutter checks how the word or format is being used:
+
+| Situation | Example | Treatment |
+| --- | --- | --- |
+| Technical sense of a word | Kerberos realm, test harness, landscape mode, elevated privileges, robust estimator, BLE beacon, user journey, dynamic programming | not counted |
+| Code inside a document | fenced blocks, `inline code`, URLs, HTML `<pre>` and `<code>` | not read as prose |
+| Reference formats in technical docs | bold labels naming config keys, placeholder API keys in setup steps, emoji section headings | not counted or reduced |
+| Tests and fixtures | John Doe, Acme Corp and dummy keys in `*.test.js`, `tests/`, `fixtures/` | not counted |
+| Mentions | a phrase in quotation marks, a comma-separated list of the words, a table of examples | not counted |
+| One-offs | a single em dash, one narrating comment, one generic error message | shown, counted only when repeated |
+
+The document type (technical document, source code, test code or general prose) is detected
+from code blocks, inline code, reference headings such as *Installation* and *Usage*, command
+lines and test file names. You can override it with the Context menu in the web app or
+`--context technical|general` on the command line.
+
+Nothing is silently dropped: the report lists every flag that was set aside under
+**Checked, not counted**, with the reason, such as *Technical sense: "Kerberos realm"*.
+
+To teach it a new technical sense, add a pattern to `SENSES` in `src/context.js` and link it from
+the word's entry in `src/rules.js`.
 
 ## GETTING STARTED
 
@@ -77,6 +106,7 @@ node bin/slop-shutter.js README.md src/ https://example.com
 | `-v`, `--verbose` | list every flagged passage with line and column |
 | `--json` / `--md` | machine-readable or Markdown output |
 | `--kind prose\|html\|code` | override detection |
+| `--context technical\|general` | override the document context |
 | `--fail-above <n>` | exit 1 if any file scores `n` or more, for CI |
 | `--min-score <n>` | only report files scoring `n` or more |
 | `--model <file>` | use a trained model |
@@ -127,6 +157,7 @@ to check how well the model generalises.
 ```
 src/rules.js      pattern rules and categories
 src/surfaces.js   file kind detection and the text/comment surfaces
+src/context.js    document context, technical word senses and discounts
 src/stats.js      whole-document signals
 src/engine.js     features, model, scoring, explanations
 src/model.js      training and evaluation

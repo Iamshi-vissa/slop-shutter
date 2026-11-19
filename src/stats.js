@@ -81,7 +81,7 @@ export function documentSignals(doc) {
   // Em dash density, per thousand words of prose.
   const dashes = (text.match(/—|(?<=\w) -- (?=\w)|&mdash;|&#8212;/g) || []).length;
   stats.emDashPer1k = proseWords ? round((dashes / proseWords) * 1000, 1) : 0;
-  if (proseWords >= 80 && stats.emDashPer1k > 6) {
+  if (proseWords >= 80 && dashes >= 4 && stats.emDashPer1k > 6) {
     add('em-dash-density', 'format', 'Heavy em dash use',
       `${dashes} em dashes, ${stats.emDashPer1k} per thousand words. Edited human prose rarely passes 5.`,
       clamp((stats.emDashPer1k - 6) / 10, 0, 1) * 2 + 0.5);

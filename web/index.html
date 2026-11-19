@@ -45,6 +45,14 @@
           <button role="radio" data-kind="html">Web page</button>
           <button role="radio" data-kind="code">Code</button>
         </div>
+        <label class="context-pick" title="How to read word use and formats">
+          <span>Context</span>
+          <select id="context">
+            <option value="auto">Auto</option>
+            <option value="technical">Technical</option>
+            <option value="general">General</option>
+          </select>
+        </label>
         <span class="detected" id="detected"></span>
         <form class="url-form" id="url-form" hidden>
           <label class="visually-hidden" for="url">Web page address</label>
@@ -76,6 +84,7 @@
           <div class="verdict">
             <p class="verdict-label" id="verdict">Waiting for input</p>
             <p class="verdict-meta" id="verdict-meta">Scores how much the text looks generated.</p>
+            <p class="verdict-context" id="verdict-context"></p>
           </div>
         </div>
         <div class="meter" aria-hidden="true">
@@ -85,6 +94,7 @@
           <span class="meter-marker" id="meter-marker"></span>
           <div class="meter-labels"><span>Human</span><span>Mixed</span><span>Generated</span></div>
         </div>
+        <p class="capped" id="capped" hidden></p>
       </section>
 
       <section class="panel" id="breakdown-panel" hidden>
@@ -102,6 +112,11 @@
         </div>
         <div class="chips" id="chips" role="toolbar" aria-label="Filter by category"></div>
         <ul class="signals" id="signals"></ul>
+        <div class="checked" id="checked" hidden>
+          <h3 class="checked-title">Checked, not counted <span class="count" id="checked-count"></span></h3>
+          <p class="checked-sub">Flags that context explains: technical word senses, example code, standard formats and one-offs.</p>
+          <ul class="signals" id="checked-list"></ul>
+        </div>
       </section>
 
       <details class="about">
@@ -111,6 +126,11 @@
           whole-document measures such as sentence-length variation. Each hit adds evidence, with
           diminishing returns for repeats and a correction for length; a logistic model turns the
           total into a 1–99 score.</p>
+        <p>Context matters. Words such as "realm", "harness" or "landscape" are checked against
+          their technical senses, code examples inside documents are skipped, reference-style
+          formats count less in technical documents, and placeholders are expected in tests. A
+          "likely AI" verdict needs at least two independent kinds of evidence. Anything set aside
+          is listed under "Checked, not counted" with the reason.</p>
         <p>A score is evidence, not proof. Skilled writers use em dashes, and edited model output can
           read clean. Use it to find passages worth a second look, not to accuse anyone.</p>
       </details>

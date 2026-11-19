@@ -9,7 +9,8 @@ const el = {
   scorecard: $('scorecard'), scoreNum: $('score-num'), verdict: $('verdict'), verdictMeta: $('verdict-meta'),
   marker: $('meter-marker'), breakdownPanel: $('breakdown-panel'), breakdown: $('breakdown'),
   signalsPanel: $('signals-panel'), signals: $('signals'), signalCount: $('signal-count'), chips: $('chips'),
-  fileInput: $('file-input'), dropzone: $('dropzone'), toast: $('toast'),
+  fileInput: $('file-input'), context: $('context'), verdictContext: $('verdict-context'), capped: $('capped'),
+  checked: $('checked'), checkedList: $('checked-list'), checkedCount: $('checked-count'), dropzone: $('dropzone'), toast: $('toast'),
 };
 
 const SAMPLES = [
@@ -17,7 +18,9 @@ const SAMPLES = [
   { file: 'ai-landing-page.html', label: 'Generated landing page' },
   { file: 'ai-script.py', label: 'Generated Python' },
   { file: 'ai-component.jsx', label: 'Generated React' },
+  { file: 'ai-readme.md', label: 'Generated README' },
   { file: 'human-notes.md', label: 'Hand-written notes', human: true },
+  { file: 'human-readme.md', label: 'Hand-written README', human: true },
   { file: 'handmade-page.html', label: 'Hand-made web page', human: true },
 ];
 const KIND_LABEL = { prose: 'prose', html: 'web page', code: 'code' };
@@ -36,7 +39,7 @@ const state = {
 // ── Persistence (per-viewer convenience only; the app works without it) ──────
 function save() {
   try {
-    const docs = state.docs.map(({ id, name, text, kind }) => ({ id, name, text, kind }));
+    const docs = state.docs.map(({ id, name, text, kind, context }) => ({ id, name, text, kind, context }));
     const payload = JSON.stringify({ docs, active: state.active });
     if (payload.length < 1_500_000) localStorage.setItem(STORE_KEY, payload);
   } catch { /* storage unavailable */ }
@@ -56,7 +59,7 @@ function restore() {
 const current = () => state.docs.find((d) => d.id === state.active);
 
 function addDoc(name, text = '', kind = 'auto') {
-  const doc = { id: nextId++, name, text, kind, result: null };
+  const doc = { id: nextId++, name, text, kind, context: 'auto', result: null };
   // Replace the active tab if it is an empty Untitled one, rather than piling up blanks.
   const cur = current();
   const i = cur && !cur.text && cur.name === 'Untitled' && name !== 'Untitled' ? state.docs.indexOf(cur) : -1;
@@ -89,7 +92,11 @@ function select(id) {
 function run() {
   const doc = current();
   doc.result = doc.text.trim()
-    ? analyze(doc.text, { filename: doc.name === 'Untitled' ? '' : doc.name, kind: doc.kind === 'auto' ? undefined : doc.kind })
+    ? analyze(doc.text, {
+      filename: doc.name === 'Untitled' ? '' : doc.name,
+      kind: doc.kind === 'auto' ? undefined : doc.kind,
+      context: doc.context || 'auto',
+    })
     : null;
   renderTabs();
   renderToolbar();
@@ -140,9 +147,15 @@ function renderTabs() {
 function renderToolbar() {
   const doc = current();
   for (const b of el.kind.querySelectorAll('button')) b.setAttribute('aria-checked', String(b.dataset.kind === doc.kind));
+  el.context.value = doc.context || 'auto';
   const r = doc.result;
   el.detected.textContent = r && doc.kind === 'auto' ? `Reading as ${KIND_LABEL[r.kind]}${r.kind === 'code' ? ' (comments and copy)' : ''}` : '';
 }
+
+el.context.addEventListener('change', () => {
+  current().context = el.context.value;
+  run();
+});
 
 el.kind.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-kind]');
@@ -167,7 +180,8 @@ function renderLayer() {
   let at = 0;
   for (const f of r.findings) {
     if (f.start < at) continue;
-    const w = f.weight >= 2.5 ? 'w3' : f.weight >= 1.2 ? 'w2' : 'w1';
+    const eff = f.weight * (f.discount ? f.discount.factor : 1);
+    const w = !f.counted ? 'off' : eff >= 2.5 ? 'w3' : eff >= 1.2 ? 'w2' : 'w1';
     const dim = state.filter !== 'all' && ruleCategory[f.rule] !== state.filter ? ' dim' : '';
     const hot = state.hot === f.rule ? ' hot' : '';
     html += escapeHtml(text.slice(at, f.start));
@@ -210,12 +224,18 @@ function renderReport() {
     el.marker.style.opacity = 0;
     el.breakdownPanel.hidden = true;
     el.signalsPanel.hidden = true;
+    el.verdictContext.textContent = '';
+    el.capped.hidden = true;
     return;
   }
   el.scoreNum.textContent = r.score;
   el.verdict.textContent = r.verdict.label;
   const words = r.kind === 'code' ? `${r.stats.codeLines} lines` : `${r.stats.words} words`;
   el.verdictMeta.textContent = `${capitalise(KIND_LABEL[r.kind])} · ${words} · ${r.confidence} confidence${r.confidence === 'low' ? ' (short input)' : ''}`;
+  const ctx = r.context;
+  el.verdictContext.textContent = `${ctx.label}${ctx.markers.length ? `: ${ctx.markers.join(', ')}` : ''}`;
+  el.capped.hidden = !r.capped;
+  if (r.capped) el.capped.textContent = `Held at ${r.score} (would be ${r.capped.from}). ${r.capped.reason}`;
   el.marker.style.left = `${r.score}%`;
   el.marker.style.opacity = 1;
 
@@ -244,7 +264,9 @@ function renderSignals(r) {
   ].sort((a, b) => b.contribution - a.contribution);
 
   el.signalsPanel.hidden = false;
-  el.signalCount.textContent = r.findings.length ? `${r.findings.length} flagged` : '';
+  const counted = r.findings.filter((f) => f.counted).length;
+  el.signalCount.textContent = counted ? `${counted} flagged` : '';
+  renderChecked(r);
 
   // Category chips, only for categories present.
   const present = [...new Set(items.map((i) => i.category))];
@@ -308,7 +330,7 @@ function signalBody(item, r) {
   why.textContent = item.why;
   body.append(why);
   if (item.kind !== 'rule') return body;
-  const hits = r.findings.filter((f) => f.rule === item.id);
+  const hits = r.findings.filter((f) => f.rule === item.id && f.counted);
   const ul = document.createElement('ul');
   ul.className = 'hits';
   for (const f of hits.slice(0, MAX_HITS)) {
@@ -332,6 +354,51 @@ function signalBody(item, r) {
     body.append(more);
   }
   return body;
+}
+
+// Flags that context set aside, grouped by reason, each with its passages.
+function renderChecked(r) {
+  const groups = r.discounted.filter((d) => d.factor === 0);
+  const n = groups.reduce((a, g) => a + g.count, 0);
+  el.checked.hidden = !n;
+  el.checkedCount.textContent = n ? `${n}` : '';
+  el.checkedList.replaceChildren(...groups.map((g) => {
+    const li = document.createElement('li');
+    li.className = 'signal';
+    const key = `checked:${g.reason}`;
+    const isOpen = state.open.has(key);
+    li.innerHTML = `
+      <button class="signal-head" aria-expanded="${isOpen}">
+        <span class="sev off"></span>
+        <span class="signal-label"></span>
+        <span class="signal-n">×${g.count}</span>
+        <span class="signal-pts neg">0</span>
+      </button>`;
+    li.querySelector('.signal-label').textContent = g.reason;
+    li.firstElementChild.onclick = () => {
+      if (state.open.has(key)) state.open.delete(key); else state.open.add(key);
+      renderChecked(r);
+    };
+    if (isOpen) {
+      const ul = document.createElement('ul');
+      ul.className = 'hits signal-body';
+      for (const id of g.findings.slice(0, MAX_HITS)) {
+        const f = r.findings[id];
+        const b = document.createElement('button');
+        b.className = 'hit';
+        b.innerHTML = '<span class="hit-pos"></span><span class="hit-text"></span><span class="hit-note"></span>';
+        b.children[0].textContent = `${f.line}:${f.col}`;
+        b.children[1].textContent = `${f.label} · ${f.text.replace(/\s+/g, ' ')}`;
+        b.children[2].textContent = f.discount.reason;
+        b.onclick = () => reveal(f);
+        const item = document.createElement('li');
+        item.append(b);
+        ul.append(item);
+      }
+      li.append(ul);
+    }
+    return li;
+  }));
 }
 
 const capitalise = (s) => s[0].toUpperCase() + s.slice(1);

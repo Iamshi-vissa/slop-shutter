@@ -10,7 +10,7 @@ const run = (args, input) => spawnSync(process.execPath, [bin, ...args], { input
 test('scans a folder and summarises', () => {
   const r = run([samples, '--no-color']);
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /7 files · 4 likely generated/);
+  assert.match(r.stdout, /10 files · 5 likely generated/);
 });
 
 test('--fail-above exits 1 when a file crosses the threshold', () => {

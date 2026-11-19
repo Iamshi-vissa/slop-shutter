@@ -165,7 +165,7 @@ export const RULES = [
     pattern: rx(`\\blook no further\\b|\\brest assured\\b|\\bstay ahead of the curve\\b|\\bin this (?:article|post|guide|blog post|blog),? (?:we|i)(?:${A}ll| will)\\b`),
   },
   {
-    id: 'wide-range', category: 'phrase', weight: 1, scope: PROSE,
+    id: 'wide-range', category: 'phrase', minHits: 2, weight: 1, scope: PROSE,
     label: '"A wide range of"',
     why: 'Filler quantifier common in generated text.',
     pattern: rx(`\\ba (?:wide|diverse|broad|vast) (?:range|array|variety|spectrum) of\\b|\\bthe power of\\b|\\bgame[- ]chang(?:er|ing)\\b`),
@@ -177,7 +177,7 @@ export const RULES = [
     pattern: rx(`(?:^|[.!?]\\s+|\\n)(?:in conclusion|in summary|to sum up|to summari[sz]e|overall|ultimately|in essence),`),
   },
   {
-    id: 'transition-opener', category: 'phrase', weight: 0.6, scope: PROSE_ONLY,
+    id: 'transition-opener', category: 'phrase', minHits: 3, weight: 0.6, scope: PROSE_ONLY,
     label: 'Formal transition opener',
     why: 'Sentences opening with Moreover, Furthermore or Additionally. One is normal; many is a pattern.',
     pattern: rx(`(?:^|[.!?]\\s+|\\n\\s*)(?:moreover|furthermore|additionally|in addition|consequently|notably|importantly|crucially|interestingly),`),
@@ -190,24 +190,24 @@ export const RULES = [
     why: 'These words became far more frequent after language models went mainstream.',
     // [term pattern, weight]; each distinct word is scored on its own
     terms: [
-      ['delv(?:e|es|ed|ing)', 2], ['tapestr(?:y|ies)', 2], ['multifaceted', 1.6],
-      ['intricac(?:y|ies)', 1.4], ['intricate(?:ly)?', 1.2], ['realms?', 1.2],
-      ['embark(?:s|ed|ing)?', 1.2], ['beacons?', 1.2], ['meticulous(?:ly)?', 1.4],
+      ['delv(?:e|es|ed|ing)', 2], ['tapestr(?:y|ies)', 2, 'tapestry'], ['multifaceted', 1.6],
+      ['intricac(?:y|ies)', 1.4], ['intricate(?:ly)?', 1.2], ['realms?', 1.2, 'realm'],
+      ['embark(?:s|ed|ing)?', 1.2, 'embark'], ['beacons?', 1.2, 'beacon'], ['meticulous(?:ly)?', 1.4],
       ['bustling', 1.4], ['unwavering', 1.4], ['labyrinth(?:ine)?', 1.2],
       ['commendable', 1.4], ['paramount', 1.2], ['plethora', 1.4], ['pivotal', 1.2],
-      ['showcas(?:e|es|ed|ing)', 1], ['underscor(?:e|es|ed|ing)', 1], ['boast(?:s|ing)', 0.8],
-      ['seamless(?:ly)?', 1], ['elevat(?:e|es|ed|ing)', 0.8], ['vibrant', 0.8],
-      ['harness(?:es|ed|ing)?', 0.8], ['foster(?:s|ed|ing)?', 0.8], ['leverag(?:e|es|ed|ing)', 0.8],
-      ['robust', 0.6], ['holistic(?:ally)?', 0.8], ['synerg(?:y|ies|istic)', 0.8],
-      ['myriad', 1], ['nuanced', 0.6], ['resonat(?:e|es|ed|ing)', 0.8], ['interplay', 0.8],
+      ['showcas(?:e|es|ed|ing)', 1, 'showcase'], ['underscor(?:e|es|ed|ing)', 1, 'underscore'], ['boast(?:s|ing)', 0.8],
+      ['seamless(?:ly)?', 1, 'seamless'], ['elevat(?:e|es|ed|ing)', 0.8, 'elevate'], ['vibrant', 0.8, 'vibrant'],
+      ['harness(?:es|ed|ing)?', 0.8, 'harness'], ['foster(?:s|ed|ing)?', 0.8, 'foster'], ['leverag(?:e|es|ed|ing)', 0.8, 'leverage'],
+      ['robust', 0.6, 'robust'], ['holistic(?:ally)?', 0.8], ['synerg(?:y|ies|istic)', 0.8],
+      ['myriad', 1], ['nuanced', 0.6], ['resonat(?:e|es|ed|ing)', 0.8, 'resonate'], ['interplay', 0.8, 'interplay'],
       ['transformative', 0.8], ['groundbreaking', 0.8], ['cutting[- ]edge', 0.8],
       ['unparalleled', 1], ['invaluable', 0.8], ['empower(?:s|ed|ing|ment)?', 0.8],
-      ['streamlin(?:e|es|ed|ing)', 0.6], ['revolutioni[sz](?:e|es|ed|ing)', 0.8],
+      ['streamlin(?:e|es|ed|ing)', 0.6, 'streamline'], ['revolutioni[sz](?:e|es|ed|ing)', 0.8],
       ['effortless(?:ly)?', 0.8], ['unleash(?:es|ed|ing)?', 1], ['supercharg(?:e|es|ed|ing)', 1],
       ['captivat(?:e|es|ed|ing)', 0.8], ['enigmatic', 1], ['symphony', 1], ['kaleidoscope', 1.2],
-      ['landscape', 0.5], ['navigat(?:e|es|ed|ing)', 0.4], ['crucial', 0.3], ['comprehensive', 0.3],
-      ['enhanc(?:e|es|ed|ing)', 0.3], ['journey', 0.3], ['ever[- ]evolving', 1.4],
-      ['dynamic', 0.3], ['innovative', 0.4], ['insightful', 0.6], ['noteworthy', 0.8],
+      ['landscape', 0.5, 'landscape'], ['navigat(?:e|es|ed|ing)', 0.4, 'navigate'], ['crucial', 0.3], ['comprehensive', 0.3, 'comprehensive'],
+      ['enhanc(?:e|es|ed|ing)', 0.3, 'enhance'], ['journey', 0.3, 'journey'], ['ever[- ]evolving', 1.4],
+      ['dynamic', 0.3, 'dynamic'], ['innovative', 0.4, 'innovative'], ['insightful', 0.6], ['noteworthy', 0.8],
     ],
   },
 
@@ -245,9 +245,9 @@ export const RULES = [
 
   // ── Formatting tells ────────────────────────────────────────────────────────
   {
-    id: 'em-dash', category: 'format', weight: 0.35, scope: PROSE,
+    id: 'em-dash', category: 'format', minHits: 4, weight: 0.35, scope: PROSE,
     label: 'Em dash',
-    why: 'Fine on its own. Dense em dashes are a strong model habit; see the density signal.',
+    why: 'Fine on its own; only a pattern when dense. See the density signal.',
     pattern: rx(`—|(?<=\\w) -- (?=\\w)|&mdash;|&#8212;`),
   },
   {
@@ -277,7 +277,7 @@ export const RULES = [
 
   // ── Narrating comments ──────────────────────────────────────────────────────
   {
-    id: 'narrating-comment', category: 'comments', line: true, weight: 1,
+    id: 'narrating-comment', category: 'comments', minHits: 3, line: true, weight: 1,
     scope: COMMENTS,
     label: 'Comment restates the code',
     why: '"// Initialize the counter" above the line that initialises the counter adds nothing.',
@@ -303,10 +303,10 @@ export const RULES = [
     pattern: rx(`(?:${CMT}|"""|''')\\s*(?:this|the following|the below) (?:function|method|class|component|code|script|module|hook|helper|endpoint|block|snippet|route)\\s+(?:is used to|will|handles?|takes|returns|creates|is responsible for|ensures?|allows?|demonstrates?)\\b|(?:helper|utility) function (?:to|for|that)\\b`, 'gimu'),
   },
   {
-    id: 'ensure-comment', category: 'comments', line: true, weight: 0.8, scope: COMMENTS,
+    id: 'ensure-comment', category: 'comments', minHits: 2, line: true, weight: 0.8, scope: COMMENTS,
     label: '"Make sure to…" comment',
     why: 'Instruction-style comments addressed to the reader of an answer.',
-    pattern: rx(`${CMT}\\s*(?:note:|important:|make sure (?:to|that|you)|ensure (?:that|the|you)|don${A}?t forget to|remember to)`, 'gimu'),
+    pattern: rx(`${CMT}\\s*(?:make sure (?:to|that|you)|ensure (?:that|the|you)|don${A}?t forget to|remember to)`, 'gimu'),
   },
   {
     id: 'emoji-comment', category: 'comments', line: true, weight: 1.5, scope: COMMENTS,
@@ -353,13 +353,13 @@ export const RULES = [
     pattern: rx(`\\b(?:john|jane) (?:doe|smith)\\b|\\bacme(?: corp(?:oration)?| inc\\.?)?\\b|\\blorem ipsum\\b|\\b(?:your|my) (?:company|brand|business|startup|product)(?: name)?\\b|\\bcompany name\\b|\\b123 main st(?:reet)?\\b|\\(555\\)\\s?\\d{3}-\\d{4}|\\b(?:john|jane|hello|contact|info)(?:\\.doe)?@(?:example|yourcompany|company|domain)\\.com\\b`),
   },
   {
-    id: 'generic-error', category: 'scaffold', weight: 1, scope: CODE_RAW,
+    id: 'generic-error', category: 'scaffold', minHits: 2, weight: 1, scope: CODE_RAW,
     label: 'Generic error message',
     why: '"An error occurred" tells the user nothing; it is the default a model writes.',
     pattern: rx(`["'\`](?:an (?:unexpected )?error (?:occurred|has occurred)|something went wrong|oops!?)[^"'\`\\n]{0,40}["'\`]`),
   },
   {
-    id: 'dead-link', category: 'scaffold', weight: 0.5, scope: WEB_RAW,
+    id: 'dead-link', category: 'scaffold', minHits: 3, weight: 0.5, scope: WEB_RAW,
     label: 'Dead link href="#"',
     why: 'Navigation and buttons that go nowhere are the sign of a mock-up.',
     pattern: rx(`\\bhref=["']#["']`),
@@ -379,7 +379,7 @@ export const RULES = [
     pattern: rx(`\\bbg-gradient-to-(?:r|br|tr|b|l)\\b[^"'\`\\n]{0,80}?\\bfrom-(?:purple|indigo|violet|blue|pink|fuchsia)-\\d{2,3}\\b|\\bbg-clip-text\\b[^"'\`\\n]{0,60}?\\btext-transparent\\b|\\btext-transparent\\b[^"'\`\\n]{0,60}?\\bbg-clip-text\\b|background-clip:\\s*text`, 'gu'),
   },
   {
-    id: 'glass', category: 'template', weight: 0.6, scope: WEB_RAW,
+    id: 'glass', category: 'template', minHits: 2, weight: 0.6, scope: WEB_RAW,
     label: 'Glassmorphism blur',
     why: 'Frosted-glass cards are a default flourish in generated UI.',
     pattern: rx(`\\bbackdrop-blur(?:-\\w+)?\\b|backdrop-filter:\\s*blur`, 'gu'),
