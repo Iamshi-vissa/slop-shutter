@@ -143,6 +143,11 @@ kbd {
   display: grid;
   grid-template-rows: auto auto 1fr;
 }
+/* Pin each part to its row: the view switch is hidden on wide screens, and without this the
+   workspace would slide into its auto-height row and leave a gap at the bottom. */
+.topbar { grid-row: 1; }
+.viewswitch { grid-row: 2; }
+.workspace { grid-row: 3; }
 
 .topbar {
   display: flex;
@@ -381,6 +386,7 @@ kbd {
   caret-color: var(--slop);
   outline: none;
 }
+.editor textarea::placeholder { color: var(--text-3); }
 
 mark {
   --c: var(--lang);
@@ -512,29 +518,9 @@ mark.flash { animation: flash 1.1s var(--ease); }
 .hero-copy { max-width: 600px; padding-top: 22px; border-top: 1px solid var(--line); }
 .hero-copy h1 { margin: 0 0 10px; font: 700 20px/1.25 var(--display); font-stretch: 100%; letter-spacing: -0.005em; }
 .hero-copy p { margin: 0; color: var(--text-2); font-size: 15px; line-height: 1.6; }
-.hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 22px 0 40px; }
+.hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 22px 0 0; }
 .hero-actions .btn { height: 40px; padding: 0 18px; font-size: 13px; }
 .hint { font: 500 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); margin-left: 6px; }
-
-.samples { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-.sample-btn { display: block; padding: 0; border: 0; background: none; text-align: left; }
-.sample-btn:focus-visible { outline-offset: 3px; }
-.sample.spotlight-card {
-  display: grid;
-  gap: 18px;
-  padding: 14px 14px 13px;
-  border-radius: 2px;
-  min-height: 112px;
-  transition: transform 220ms var(--ease);
-}
-.sample-btn:hover .sample { transform: translateY(-2px); }
-.sample::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--slop); z-index: 2; }
-.sample.is-human::before { background: var(--human); }
-.sample-n { font: 600 11px var(--mono); color: var(--text-3); }
-.sample-name { align-self: end; font: 650 15px/1.2 var(--ui); color: var(--text); }
-.sample-meta { display: flex; justify-content: space-between; font: 500 10.5px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
-.sample-tag { color: var(--slop); }
-.is-human .sample-tag { color: var(--human); }
 
 /* ── Report ──────────────────────────────────────────────────────────────────── */
 .report-col { position: relative; min-height: 0; display: flex; flex-direction: column; }
@@ -772,7 +758,7 @@ mark.flash { animation: flash 1.1s var(--ease); }
 .noise { pointer-events: none; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
-@media (max-width: 1200px) { :root { --report-w: 400px; } .samples { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1200px) { :root { --report-w: 400px; } }
 @media (max-width: 960px) {
   .viewswitch {
     display: grid;
@@ -808,7 +794,6 @@ mark.flash { animation: flash 1.1s var(--ease); }
   .top-actions .btn { width: 34px; padding: 0; }
   .detected { display: none; }
   .layer, .editor textarea { padding: 18px 20px 40vh 14px; font-size: 13px; }
-  .samples { grid-template-columns: 1fr 1fr; }
   .scorecard.spotlight-card, .panel { padding-left: 16px; padding-right: 16px; }
   .comp-list li { grid-template-columns: 9px auto 1fr 44px; }
   .comp-cats { display: none; }

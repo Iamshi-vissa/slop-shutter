@@ -205,7 +205,7 @@ function Row({ fam, label, sub, count, pts, open, onToggle, onHot, children, mut
   );
 }
 
-function Signals({ result, filter, setFilter, setHot, onReveal }) {
+function Signals({ result, filter, setFilter, setHot, onReveal, letters = ['C', 'D'] }) {
   const [open, setOpen] = useState(() => new Set());
   const toggle = (k) => setOpen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
@@ -228,7 +228,7 @@ function Signals({ result, filter, setFilter, setHot, onReveal }) {
   return (
     <section className="panel grow">
       <div className="panel-head">
-        <h2 className="kicker"><span className="kicker-n">C</span> Signals <span className="dim">{counted} flagged</span></h2>
+        <h2 className="kicker"><span className="kicker-n">{letters[0]}</span> Signals <span className="dim">{counted} flagged</span></h2>
       </div>
       <div className="filters" role="toolbar" aria-label="Filter by family">
         {['all', 'lang', 'form', 'code'].map((id) => (
@@ -278,7 +278,7 @@ function Signals({ result, filter, setFilter, setHot, onReveal }) {
 
       {checkedN > 0 && (
         <div className="checked">
-          <h3 className="kicker"><span className="kicker-n">D</span> Checked, not counted <span className="dim">{checkedN}</span></h3>
+          <h3 className="kicker"><span className="kicker-n">{letters[1]}</span> Checked, not counted <span className="dim">{checkedN}</span></h3>
           <p className="checked-sub">Flags that context explains: technical word senses, example code, quoted mentions, standard formats and one-offs.</p>
           <ul className="sigs">
             {checked.map((g) => {
@@ -308,7 +308,11 @@ const STEPS = [
   ['Corroboration', 'A likely-AI verdict needs two independent kinds of evidence.'],
 ];
 
+// Composition is hidden when there is no evidence; section letters follow what is shown.
+const hasComposition = (r) => r.categories.some((c) => c.contribution !== 0);
+
 export default function Report({ result, theme, revealKey, filter, setFilter, setHot, onReveal }) {
+  const letters = result && hasComposition(result) ? ['C', 'D'] : ['B', 'C'];
   return (
     <aside className="report" aria-label="Report">
       <Reveal revealKey={revealKey}><ScoreCard result={result} theme={theme} /></Reveal>
@@ -316,7 +320,7 @@ export default function Report({ result, theme, revealKey, filter, setFilter, se
         <>
           <Reveal revealKey={revealKey} delay={0.08}><Composition result={result} /></Reveal>
           <Reveal revealKey={revealKey} delay={0.16}>
-            <Signals result={result} filter={filter} setFilter={setFilter} setHot={setHot} onReveal={onReveal} />
+            <Signals result={result} filter={filter} setFilter={setFilter} setHot={setHot} onReveal={onReveal} letters={letters} />
           </Reveal>
         </>
       ) : (

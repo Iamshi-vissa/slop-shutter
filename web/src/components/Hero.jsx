@@ -1,16 +1,14 @@
 import TrueFocus from '../reactbits/TrueFocus.jsx';
-import SpotlightCard from '../reactbits/SpotlightCard.jsx';
-import { SAMPLES } from '../samples.js';
 
 // The demo sentence is made of the phrases a model reaches for first; the focus frame
 // moves between them the way the detector does.
 const DEMO = "In today's fast-paced world,|it's not just a tool —|it's a testament|to seamless|innovation.";
 
-export default function Hero({ theme, onPaste, onOpen, onSample, onStartTyping }) {
+export default function Hero({ onPaste, onOpen, onStartTyping }) {
   return (
     <div className="hero" onClick={(e) => { if (!e.target.closest('button, a')) onStartTyping(); }}>
       <div className="hero-inner">
-        <p className="kicker"><span className="kicker-n">00</span> Live scan of a sample sentence</p>
+        <p className="kicker"><span className="kicker-n">00</span> Live scan of a demo sentence</p>
         <div className="hero-demo">
           <TrueFocus
             sentence={DEMO}
@@ -42,30 +40,6 @@ export default function Hero({ theme, onPaste, onOpen, onSample, onStartTyping }
             Open files
           </button>
           <span className="hint">or start typing · drop files anywhere</span>
-        </div>
-
-        <p className="kicker"><span className="kicker-n">01</span> Samples</p>
-        <div className="samples">
-          {SAMPLES.map((s, i) => (
-            <button type="button" key={s.file} className="sample-btn" onClick={() => onSample(s)}>
-              <SpotlightCard
-                className={`sample ${s.human ? 'is-human' : 'is-slop'}`}
-                theme={theme}
-                spotlightColor={s.human ? 'var(--human)' : 'var(--slop)'}
-                intensity={0.18}
-                spotlightSize={220}
-                borderGlow={0.8}
-                style={{ '--spotlight-card-surface': 'var(--panel)', '--spotlight-card-border': 'var(--line)', '--spotlight-card-shadow': 'none' }}
-              >
-                <span className="sample-n">{String(i + 1).padStart(2, '0')}</span>
-                <span className="sample-name">{s.label}</span>
-                <span className="sample-meta">
-                  <span>{s.type}</span>
-                  <span className="sample-tag">{s.human ? 'Hand-written' : 'Generated'}</span>
-                </span>
-              </SpotlightCard>
-            </button>
-          ))}
         </div>
       </div>
     </div>

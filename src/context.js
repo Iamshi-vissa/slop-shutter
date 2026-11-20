@@ -41,21 +41,24 @@ export function codeRegions(raw, kind) {
   const ranges = [];
   const collect = (re) => { re.lastIndex = 0; let m; while ((m = re.exec(raw))) ranges.push([m.index, m.index + m[0].length]); };
   if (kind === 'prose') {
-    collect(/^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?^[ \t]*\1[ \t]*$/gm);
+    // (?!`) and (?!~) make the fence run atomic, so a long run of backticks cannot backtrack.
+    collect(/^[ \t]*(`{3,})(?!`)[^`\n]*\n[\s\S]*?^[ \t]*\1[ \t]*$|^[ \t]*(~{3,})(?!~)[^\n]*\n[\s\S]*?^[ \t]*\2[ \t]*$/gm);
     const fenced = ranges.slice();
     const inFence = (i) => fenced.some(([a, b]) => i >= a && i < b);
     const inline = /`[^`\n]+`/g;
     let m;
     while ((m = inline.exec(raw))) if (!inFence(m.index)) ranges.push([m.index, m.index + m[0].length]);
   } else if (kind === 'html') {
-    collect(/<(pre|code|kbd|samp|var)\b[^>]*>[\s\S]*?<\/\1\s*>/gi);
+    collect(/<(pre|code|kbd|samp|var)\b[^<>]*>[\s\S]*?<\/\1\s*>/gi);
   }
   return ranges.sort((a, b) => a[0] - b[0]);
 }
 
 const inRanges = (ranges, i) => ranges.some(([a, b]) => i >= a && i < b);
 
-const TEST_NAME = /(?:^|[\\/])(?:tests?|__tests__|spec|specs|fixtures?|mocks?|__mocks__|stories|examples?|e2e|cypress|playwright)[\\/]|(?:\.|_|-)(?:test|spec|stories|story|fixture|mock)s?\.\w+$|(?:^|[\\/])test_[^\\/]+\.py$|\.(?:example|sample|template|dist)$/i;
+// Test files are recognised by their own name or by the test code inside them, never by the
+// folder they sit in: an examples/ or fixtures/ folder is where generated code often lives.
+const TEST_NAME = /(?:^|[\\/])(?:[^\\/]+[._-](?:test|spec|stories|story|fixture|mock)s?\.\w+|test_[^\\/]+\.py|[^\\/]+_test\.(?:go|py|rb|exs?)|conftest\.py|[^\\/]+\.(?:example|sample|template|dist))$/i;
 const TEST_CONTENT = /\b(?:describe|it|test)\s*\(\s*['"`]|^\s*def test_\w+|^\s*import (?:pytest|unittest)|^\s*from unittest\b|\bassert(?:Equal|True|Throws|_eq)?\s*[!(]|#\[test\]|@Test\b|func Test\w+\(/gm;
 
 /**
@@ -136,10 +139,19 @@ export function applyContext(findings, doc, ctx, rulesById) {
   // themselves, or a table row cataloguing examples. Documentation about writing (style
   // guides, this project's own README) quotes these phrases without using them.
   const raw = doc.raw;
-  const lineOf = (i) => {
-    const a = raw.lastIndexOf('\n', i - 1) + 1;
-    const b = raw.indexOf('\n', i);
-    return raw.slice(a, b === -1 ? raw.length : b);
+  const starts = [0];
+  for (let i = 0; i < raw.length; i++) if (raw.charCodeAt(i) === 10) starts.push(i + 1);
+  const tableRows = new Map(); // line index -> is it a table row listing examples?
+  const isExampleRow = (i) => {
+    let lo = 0, hi = starts.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= i) lo = mid; else hi = mid - 1; }
+    if (!tableRows.has(lo)) {
+      const end = lo + 1 < starts.length ? starts[lo + 1] - 1 : raw.length;
+      const line = raw.slice(starts[lo], end);
+      const examples = (line.match(/"[^"\n]{2,60}"|“[^”\n]{2,60}”|`[^`\n]+`/g) || []).length;
+      tableRows.set(lo, /^\s*\|.*\|\s*$/.test(line) && examples >= 2);
+    }
+    return tableRows.get(lo);
   };
   for (const f of findings) {
     // Quotation marks mean "mention" only in prose. In code they delimit string literals,
@@ -148,11 +160,7 @@ export function applyContext(findings, doc, ctx, rulesById) {
     const before = raw[f.start - 1] || '';
     const after = raw.slice(f.end, f.end + 4).match(/^[\w\s.,!?…:;)-]{0,3}?(["”'’])/);
     if (/["“'‘]/.test(before) && after) { set(f, 0, 'Quoted as an example, not used'); continue; }
-    if (doc.kind === 'prose') {
-      const line = lineOf(f.start);
-      const examples = (line.match(/"[^"\n]{2,60}"|“[^”\n]{2,60}”|`[^`\n]+`/g) || []).length;
-      if (/^\s*\|.*\|\s*$/.test(line) && examples >= 2) set(f, 0, 'Listed as an example in a table');
-    }
+    if (doc.kind === 'prose' && isExampleRow(f.start)) set(f, 0, 'Listed as an example in a table');
   }
   const vocab = findings.filter((f) => f.rule === 'model-vocab').sort((a, b) => a.start - b.start);
   let run = [vocab[0]];

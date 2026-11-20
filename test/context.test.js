@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { analyze } from '../src/index.js';
 
-const sample = (f) => readFileSync(new URL(`../samples/${f}`, import.meta.url), 'utf8');
+const sample = (f) => readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8');
 const counted = (r, rule) => r.findings.filter((f) => f.rule === rule && f.counted);
 const vocab = (r) => counted(r, 'model-vocab').map((f) => f.text.toLowerCase());
 
@@ -107,4 +107,16 @@ test('this project\'s own README is not flagged for quoting the patterns it dete
 test('quotes in code are string literals, not mentions', () => {
   const r = analyze('API_KEY = "your-api-key-here"\nclient = Client(API_KEY)\n', { filename: 'app.py' });
   assert.equal(counted(r, 'api-key-placeholder').length, 1);
+});
+
+test('test files are recognised by name or content, not by their folder', () => {
+  const code = 'API_KEY = "your-api-key-here"\nrequests.get(URL, headers={"key": API_KEY})\n';
+  for (const name of ['examples/app.py', 'test/fixtures/app.py', 'tests/helpers.py']) {
+    assert.equal(analyze(code, { filename: name }).context.testFile, false, name);
+  }
+  for (const name of ['test_app.py', 'app.test.js', 'app_test.go', '.env.example']) {
+    assert.equal(analyze(code, { filename: name }).context.testFile, true, name);
+  }
+  const tests = "test('a', () => {});\ntest('b', () => {});\n";
+  assert.equal(analyze(tests, { filename: 'helpers.js' }).context.testFile, true);
 });

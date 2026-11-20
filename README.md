@@ -4,7 +4,7 @@ Flags AI slop and generated-text patterns in prose, web pages and source code, a
 exactly which passages triggered the score.
 
 ```
-samples/ai-script.py  code · 267 words · high confidence
+ai-script.py  code · 267 words · high confidence
   ████████████████████  99  Likely AI-generated
 
    +2.4  Numbered step comment ×3  Narrating comments
@@ -121,7 +121,7 @@ amber and red.
 | TrueFocus | start screen | focus brackets moving between the stock phrases of a sample sentence |
 | Counter | score | the score rolling like an odometer |
 | DecryptedText | verdict | the verdict resolving when it changes |
-| SpotlightCard | score card, samples | a cursor-following light tinted to the verdict or sample type |
+| SpotlightCard | score card | a cursor-following light tinted to the verdict |
 | FadeContent | report | report sections fading in when a document opens |
 | Noise | whole app | a faint film grain |
 
@@ -227,7 +227,7 @@ Each address a host name resolves to is checked when the connection opens, so a 
 answer cannot slip past. Each redirect is checked the same way, at most five are followed, and
 pages are limited to 3 MB, text types only, and 12 seconds.
 
-The server sends a strict Content Security Policy and serves only `web/`, `src/` and `samples/`.
+The server sends a strict Content Security Policy and serves only the built app in `dist/`.
 
 ## DEPLOY
 
@@ -322,7 +322,7 @@ server.js         web server: built app, API routes, security headers
 server/           API handlers, guarded page fetcher, rate limits
 api/              serverless entry points (Vercel)
 Dockerfile        container image
-samples/          labelled examples used by the demo and tests
+test/fixtures/    labelled hand-written and generated documents used by the tests
 test/             node:test suites
 ```
 

@@ -10,7 +10,6 @@ RUN npm ci
 COPY vite.config.js ./
 COPY web ./web
 COPY src ./src
-COPY samples ./samples
 RUN npm run build
 
 # 2. Run: the server and API need no dependencies, only the built app.

@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { analyze, train, evaluate, prepare, detect, RULES, CATEGORIES, formatMarkdown } from '../src/index.js';
 
-const dir = new URL('../samples/', import.meta.url);
+const dir = new URL('./fixtures/', import.meta.url);
 const sample = (f) => readFileSync(new URL(f, dir), 'utf8');
 
-test('generated samples score as likely AI', () => {
+test('generated fixtures score as likely AI', () => {
   for (const f of readdirSync(dir).filter((f) => f.startsWith('ai-'))) {
     const r = analyze(sample(f), { filename: f });
     assert.ok(r.score >= 60, `${f} scored ${r.score}`);
@@ -14,7 +14,7 @@ test('generated samples score as likely AI', () => {
   }
 });
 
-test('hand-written samples score as human', () => {
+test('hand-written fixtures score as human', () => {
   for (const f of readdirSync(dir).filter((f) => !f.startsWith('ai-'))) {
     const r = analyze(sample(f), { filename: f });
     assert.ok(r.score < 30, `${f} scored ${r.score}`);
@@ -92,7 +92,7 @@ test('every rule has a known category and compiles', () => {
   }
 });
 
-test('training fits the samples and returns a usable model', () => {
+test('training fits the fixtures and returns a usable model', () => {
   const examples = readdirSync(dir).map((f) => ({ filename: f, text: sample(f), label: f.startsWith('ai-') ? 1 : 0 }));
   const { model, metrics } = train(examples, { epochs: 50 });
   assert.equal(metrics.accuracy, 1);
@@ -105,4 +105,26 @@ test('markdown report lists every file', () => {
   const md = formatMarkdown([analyze('hello', { filename: 'a.txt' }), analyze(sample('ai-script.py'), { filename: 'b.py' })]);
   assert.match(md, /a\.txt/);
   assert.match(md, /b\.py/);
+});
+
+test('offsets refer to the original text, whatever the line endings', () => {
+  for (const nl of ['\n', '\r\n', '\r']) {
+    const src = ['First line.', 'In today\'s fast-paced world, we delve deeper.', 'Last.'].join(nl);
+    for (const f of analyze(src).findings) {
+      assert.equal(src.slice(f.start, f.end).replace(/\r\n?/g, (m) => (m.length === 2 ? ' \n' : '\n')), f.text, JSON.stringify(nl));
+    }
+  }
+});
+
+test('flag text quotes the original source, not the masked copy', () => {
+  const src = '<p>✅ <b>Seamless</b> integration</p>';
+  for (const f of analyze(src, { filename: 'a.html' }).findings) assert.equal(src.slice(f.start, f.end), f.text);
+});
+
+test('pathological input stays fast', () => {
+  for (const [s, filename] of [['—'.repeat(100000), 'a.md'], ['`'.repeat(100001), 'a.md'], ['<a '.repeat(50000), 'a.html'], ['/*'.repeat(50000), 'a.js']]) {
+    const t = performance.now();
+    analyze(s, { filename });
+    assert.ok(performance.now() - t < 3000, `${filename} took ${Math.round(performance.now() - t)} ms`);
+  }
 });

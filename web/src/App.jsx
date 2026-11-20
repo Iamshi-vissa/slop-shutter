@@ -11,7 +11,10 @@ const STORE_KEY = 'slop-shutter:v3';
 const THEME_KEY = 'slop-shutter:theme';
 const KIND_LABEL = { prose: 'prose', html: 'web page', code: 'code' };
 let nextId = 1;
-const makeDoc = (name, text = '', extra = {}) => ({ id: nextId++, name, text, kind: 'auto', context: 'auto', result: null, shown: '', ...extra });
+// Text boxes turn \r\n into \n, so documents are stored that way too; otherwise highlights
+// computed on the stored text would drift from what the editor shows.
+const normalise = (text) => String(text ?? '').replace(/\r\n?/g, '\n');
+const makeDoc = (name, text = '', extra = {}) => ({ id: nextId++, name, text: normalise(text), kind: 'auto', context: 'auto', result: null, shown: '', ...extra });
 
 function restore() {
   try {
@@ -50,6 +53,7 @@ export default function App() {
   const fileRef = useRef(null);
   const urlRef = useRef(null);
   const versions = useRef(new Map());
+  const inFlight = useRef(0);
 
   const doc = docs.find((d) => d.id === activeId) || docs[0];
   const result = doc.result && doc.text.trim() ? doc.result : null;
@@ -73,6 +77,7 @@ export default function App() {
     versions.current.set(d.id, v);
     if (!d.text.trim()) { patch(d.id, { result: null, shown: '' }); return; }
     const t0 = performance.now();
+    inFlight.current++;
     const slow = setTimeout(() => setBusy(true), 140);
     try {
       const r = await analyzeAsync(d.text, {
@@ -87,7 +92,8 @@ export default function App() {
       toast(`Analysis failed: ${e.message}`);
     } finally {
       clearTimeout(slow);
-      setBusy(false);
+      inFlight.current--;
+      if (inFlight.current === 0) setBusy(false);
     }
   }, [patch, toast]);
 
@@ -135,8 +141,7 @@ export default function App() {
     const d = makeDoc(name, text, extra);
     setDocs((all) => {
       const cur = all.find((x) => x.id === activeId);
-      if (cur && !cur.text && cur.name === 'Untitled') return all.map((x) => (x.id === cur.id ? d : x));
-      return [...all, d];
+      return cur && !cur.text && cur.name === 'Untitled' ? all.map((x) => (x.id === cur.id ? d : x)) : [...all, d];
     });
     setActiveId(d.id);
     setRevealKey((k) => k + 1);
@@ -147,13 +152,16 @@ export default function App() {
 
   const select = (id) => { setActiveId(id); setRevealKey((k) => k + 1); setFilter('all'); setHot(null); };
   const close = (id) => {
-    setDocs((all) => {
-      const i = all.findIndex((d) => d.id === id);
-      const rest = all.filter((d) => d.id !== id);
-      if (!rest.length) { const d = makeDoc('Untitled'); setActiveId(d.id); return [d]; }
-      if (id === activeId) setActiveId(rest[Math.max(0, i - 1)].id);
-      return rest;
-    });
+    const i = docs.findIndex((d) => d.id === id);
+    if (i === -1) return;
+    versions.current.delete(id);
+    let rest = docs.filter((d) => d.id !== id);
+    if (!rest.length) rest = [makeDoc('Untitled')];
+    setDocs(rest);
+    if (id === activeId || !rest.some((d) => d.id === activeId)) {
+      setActiveId(rest[Math.max(0, Math.min(i - 1, rest.length - 1))].id);
+      setHot(null);
+    }
   };
   const newDoc = () => { const d = makeDoc('Untitled'); setDocs((all) => [...all, d]); setActiveId(d.id); setEditing(false); };
 
@@ -180,7 +188,9 @@ export default function App() {
     }
   };
 
-  const startTyping = () => { setEditing(true); requestAnimationFrame(() => editorRef.current?.focus()); };
+  // Focus the editor straight away (not on the next frame): when this runs inside a keydown,
+  // the browser then delivers that same keystroke to the editor instead of dropping it.
+  const startTyping = () => { setEditing(true); editorRef.current?.focus(); };
 
   // ── API (only when served by the Node server or serverless functions) ─────
   useEffect(() => {
@@ -339,15 +349,13 @@ export default function App() {
               filter={filter}
               hot={hot}
               revealKey={revealKey}
-              onChange={(text) => patch(doc.id, { text })}
+              onChange={(text) => patch(doc.id, { text: normalise(text) })}
               onEditing={setEditing}
             />
             {heroVisible && (
               <Hero
-                theme={theme}
                 onPaste={pasteFromClipboard}
                 onOpen={() => fileRef.current.click()}
-                onSample={(s) => open(s.file, s.text)}
                 onStartTyping={startTyping}
               />
             )}

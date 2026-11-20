@@ -120,6 +120,7 @@ const Editor = forwardRef(function Editor({ text, findings, filter, hot, revealK
             onChange={(e) => onChange(e.target.value)}
             onFocus={() => onEditing(true)}
             onBlur={() => onEditing(false)}
+            placeholder="Paste or type text, HTML or code…"
             spellCheck={false}
             autoCapitalize="off"
             autoComplete="off"

@@ -15,8 +15,6 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.map': 'application/json; charset=utf-8', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json', '.txt': 'text/plain; charset=utf-8',
-  // samples are served as plain text whatever their extension
-  '.md': 'text/plain; charset=utf-8', '.py': 'text/plain; charset=utf-8', '.jsx': 'text/plain; charset=utf-8',
 };
 
 // Only the built web app (dist/, from `npm run build`) is public.

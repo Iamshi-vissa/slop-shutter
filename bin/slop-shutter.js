@@ -37,24 +37,33 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const val = () => { if (i + 1 >= argv.length) fail(`${a} needs a value`); return argv[++i]; };
+    const num = (lo, hi) => {
+      const v = val();
+      const n = Number(v);
+      if (v.trim() === '' || !Number.isFinite(n) || n < lo || n > hi) fail(`${a} must be a number from ${lo} to ${hi}`);
+      return n;
+    };
     switch (a) {
       case '-h': case '--help': opts.help = true; break;
       case '--json': opts.json = true; break;
       case '--md': case '--markdown': opts.md = true; break;
       case '-v': case '--verbose': opts.verbose = true; break;
       case '--no-color': opts.color = false; break;
-      case '--kind': opts.kind = val(); break;
+      case '--kind':
+        opts.kind = val();
+        if (!['prose', 'html', 'code'].includes(opts.kind)) fail('--kind must be prose, html or code');
+        break;
       case '--context':
         opts.context = val();
         if (!['auto', 'technical', 'general'].includes(opts.context)) fail('--context must be auto, technical or general');
         break;
       case '--model': opts.model = val(); break;
-      case '--fail-above': opts.failAbove = Number(val()); break;
-      case '--min-score': opts.minScore = Number(val()); break;
+      case '--fail-above': opts.failAbove = num(0, 100); break;
+      case '--min-score': opts.minScore = num(0, 100); break;
       case '--human': opts.human = val(); break;
       case '--ai': opts.ai = val(); break;
       case '-o': case '--out': opts.out = val(); break;
-      case '--port': opts.port = Number(val()); break;
+      case '--port': opts.port = num(1, 65535); break;
       case '--host': opts.host = val(); break;
       default:
         if (a.startsWith('--')) fail(`unknown option ${a}`);

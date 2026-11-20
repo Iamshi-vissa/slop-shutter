@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
-// The web app lives in web/ and imports the shared engine from src/ and the samples from
-// samples/, so the dev server is allowed to read the whole project.
+// The web app lives in web/ and imports the shared engine from src/, so the dev server is
+// allowed to read the whole project.
 export default defineConfig({
   root: 'web',
   plugins: [react()],

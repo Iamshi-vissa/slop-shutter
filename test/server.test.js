@@ -29,7 +29,7 @@ const post = (body, type = 'application/json') => fetch(`${base}/api/analyze`, {
 });
 
 test('POST /api/analyze scores JSON input', async () => {
-  const text = readFileSync(new URL('../samples/ai-script.py', import.meta.url), 'utf8');
+  const text = readFileSync(new URL('./fixtures/ai-script.py', import.meta.url), 'utf8');
   const res = await post({ text, filename: 'script.py' });
   assert.equal(res.status, 200);
   assert.equal(res.headers.get('access-control-allow-origin'), '*');
@@ -109,4 +109,18 @@ test('the analysis API is rate limited per client', async () => {
   }
   assert.ok(limited, 'expected a 429');
   assert.ok(Number(limited.headers.get('retry-after')) > 0);
+});
+
+test('compressed pages are decoded, with a size cap', async () => {
+  const { decodeBody, LIMITS } = await import('../server/safe-fetch.js');
+  const zlib = await import('node:zlib');
+  const html = '<p>Hello there</p>';
+  assert.equal(decodeBody(zlib.gzipSync(html), { 'content-encoding': 'gzip' }), html);
+  assert.equal(decodeBody(zlib.brotliCompressSync(html), { 'content-encoding': 'br' }), html);
+  assert.equal(decodeBody(zlib.deflateSync(html), { 'content-encoding': 'deflate' }), html);
+  assert.equal(decodeBody(Buffer.from(html), {}), html);
+  const bomb = zlib.gzipSync(Buffer.alloc(LIMITS.bytes + 1024, 0x61));
+  assert.throws(() => decodeBody(bomb, { 'content-encoding': 'gzip' }), /larger than 3 MB/);
+  assert.throws(() => decodeBody(Buffer.from('x'), { 'content-encoding': 'zstd' }), /Unsupported/);
+  assert.equal(decodeBody(Buffer.from([0xe9]), { 'content-type': 'text/html; charset=iso-8859-1' }), 'é');
 });

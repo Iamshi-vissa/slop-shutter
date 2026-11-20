@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const bin = fileURLToPath(new URL('../bin/slop-shutter.js', import.meta.url));
-const samples = fileURLToPath(new URL('../samples/', import.meta.url));
+const samples = fileURLToPath(new URL('./fixtures/', import.meta.url));
 const run = (args, input) => spawnSync(process.execPath, [bin, ...args], { input, encoding: 'utf8' });
 
 test('scans a folder and summarises', () => {
@@ -28,4 +28,11 @@ test('--json reads stdin', () => {
 test('unknown options and missing files are usage errors', () => {
   assert.equal(run(['--nope']).status, 2);
   assert.equal(run(['/no/such/file']).status, 2);
+});
+
+test('bad option values are usage errors, not silently ignored', () => {
+  assert.equal(run([samples, '--fail-above', 'abc']).status, 2);
+  assert.equal(run([samples, '--min-score', '']).status, 2);
+  assert.equal(run([samples, '--kind', 'pdf']).status, 2);
+  assert.equal(run([samples, '--context', 'legal']).status, 2);
 });

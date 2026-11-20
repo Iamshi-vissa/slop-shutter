@@ -77,7 +77,8 @@ export function findRules(doc) {
       const tag = `${rule.id}@${m.start}`;
       if (seen.has(tag)) return;
       seen.add(tag);
-      found.push({ rule: rule.id, category: rule.category, key, weight, start: m.start, end: m.end, text: m.text, ...(discount && { discount }) });
+      // Report the original text: the surface may have markup blanked out.
+      found.push({ rule: rule.id, category: rule.category, key, weight, start: m.start, end: m.end, text: doc.raw.slice(m.start, m.end), ...(discount && { discount }) });
     };
     if (rule.terms) {
       for (const t of rule.terms) {

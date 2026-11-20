@@ -10,6 +10,7 @@ import http from 'node:http';
 import https from 'node:https';
 import dns from 'node:dns';
 import net from 'node:net';
+import zlib from 'node:zlib';
 
 export const LIMITS = { bytes: 3_000_000, redirects: 5, timeoutMs: 12_000 };
 
@@ -70,6 +71,29 @@ function guardedLookup(hostname, options, callback) {
   });
 }
 
+/**
+ * Turn a response body into text. Some servers compress even when asked not to, so gzip,
+ * deflate and Brotli are decompressed, capped so a small body cannot expand past the limit.
+ */
+export function decodeBody(body, headers = {}) {
+  const encoding = String(headers['content-encoding'] || '').trim().toLowerCase();
+  const opts = { maxOutputLength: LIMITS.bytes };
+  try {
+    if (encoding === 'gzip' || encoding === 'x-gzip') body = zlib.gunzipSync(body, opts);
+    else if (encoding === 'deflate') body = zlib.inflateSync(body, opts);
+    else if (encoding === 'br') body = zlib.brotliDecompressSync(body, opts);
+  } catch {
+    throw new FetchError('Page is larger than 3 MB or its compression is invalid', 413);
+  }
+  if (encoding && !['gzip', 'x-gzip', 'deflate', 'br', 'identity'].includes(encoding)) {
+    throw new FetchError(`Unsupported content encoding (${encoding})`, 415);
+  }
+  const charset = (String(headers['content-type'] || '').match(/charset=([\w-]+)/i) || [])[1] || 'utf-8';
+  let decoder;
+  try { decoder = new TextDecoder(charset); } catch { decoder = new TextDecoder('utf-8'); }
+  return decoder.decode(body);
+}
+
 function request(url) {
   return new Promise((resolve, reject) => {
     const mod = url.protocol === 'https:' ? https : http;
@@ -105,10 +129,11 @@ function request(url) {
         chunks.push(chunk);
       });
       res.on('end', () => {
-        const charset = (type.match(/charset=([\w-]+)/i) || [])[1] || 'utf-8';
-        let decoder;
-        try { decoder = new TextDecoder(charset); } catch { decoder = new TextDecoder('utf-8'); }
-        resolve({ status: res.statusCode, contentType: type, text: decoder.decode(Buffer.concat(chunks)) });
+        try {
+          resolve({ status: res.statusCode, contentType: type, text: decodeBody(Buffer.concat(chunks), res.headers) });
+        } catch (e) {
+          reject(e);
+        }
       });
       res.on('error', reject);
     });

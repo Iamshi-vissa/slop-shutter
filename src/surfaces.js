@@ -63,7 +63,7 @@ export function htmlText(src) {
   return src
     .replace(/<(script|style|noscript|template|svg|pre|code|kbd|samp|var)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, blank)
     .replace(/<!--[\s\S]*?-->/g, blank)
-    .replace(/<\/?[a-zA-Z!][^>]*>/g, blank)
+    .replace(/<\/?[a-zA-Z!][^<>]*>/g, blank)
     .replace(/&[a-z]+;|&#\d+;/gi, (m) => (m === '&mdash;' || m === '&#8212;' ? m : blank(m)));
 }
 
@@ -112,7 +112,9 @@ function blankRanges(src, ranges) {
 
 /** Build the document record the engine works on. */
 export function prepare(source, filename = '', kindOverride) {
-  const raw = String(source ?? '').replace(/\r\n?/g, '\n');
+  // Normalise line endings without changing length, so every offset the engine reports is
+  // also an offset in the caller's original text: CRLF becomes " \n", a lone CR becomes "\n".
+  const raw = String(source ?? '').replace(/\r\n/g, ' \n').replace(/\r/g, '\n');
   let info = detect(raw, filename);
   if (kindOverride && KINDS.includes(kindOverride) && kindOverride !== info.kind) {
     info = kindOverride === 'code'
